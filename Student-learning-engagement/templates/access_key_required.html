@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        <i class="fas fa-lock me-2"></i>Access Key Required
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-4">
+                        <i class="fas fa-shield-alt fa-3x text-primary mb-3"></i>
+                        <h5>Resource Access Required</h5>
+                        <p class="text-muted">
+                            To view "<strong>{{ resource.title }}</strong>", you need to enter the access key provided by your teacher.
+                        </p>
+                    </div>
+                    
+                    <form method="POST" action="{{ url_for('view_resource', resource_id=resource.id) }}">
+                        <div class="mb-3">
+                            <label for="access_key" class="form-label">Access Key</label>
+                            <input type="text" 
+                                   class="form-control form-control-lg text-center" 
+                                   id="access_key" 
+                                   name="access_key" 
+                                   placeholder="Enter access key"
+                                   required 
+                                   autocomplete="off">
+                            <div class="form-text">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Please enter the access key provided by your teacher to view this resource.
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-unlock me-2"></i>Access Resource
+                            </button>
+                            <a href="{{ url_for('student_dashboard') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Back to Resources
+                            </a>
+                        </div>
+                    </form>
+                    
+                    <div class="mt-4">
+                        <div class="alert alert-info">
+                            <h6><i class="fas fa-lightbulb me-2"></i>Need Help?</h6>
+                            <ul class="mb-0">
+                                <li>Contact your teacher to get the access key</li>
+                                <li>Make sure you're entering the key exactly as provided</li>
+                                <li>Access keys are case-sensitive</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Auto-focus on the access key input
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('access_key').focus();
+});
+
+// Clear the input when the page loads
+document.getElementById('access_key').value = '';
+</script>
+{% endblock %} 

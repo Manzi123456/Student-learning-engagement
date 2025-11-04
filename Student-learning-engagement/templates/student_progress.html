@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Student Performance Report</h2>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('teacher_dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
+            <button class="btn btn-success" onclick="printAllReports()">
+                <i class="fas fa-print me-1"></i>Print All Reports
+            </button>
+        </div>
+    </div>
+    
+    {% for student in progress_data %}
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+            <div>
+                <h4>{{ student.name }}</h4>
+                <p class="mb-0">Student ID: {{ student.student_id }} | Grade: {{ student.grade }}</p>
+            </div>
+            <div>
+                <a href="{{ url_for('student_printable_report', student_id=student.id) }}" class="btn btn-success btn-sm" target="_blank">
+                    <i class="fas fa-print me-1"></i>Print Report
+                </a>
+            </div>
+        </div>
+        <div class="card-body">
+            {% if student.sessions %}
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Resource</th>
+                            <th>Date</th>
+                            <th>Study Duration</th>
+                            <th>Score/Completion</th>
+                            <th>Status</th>
+                            <th>Recommendation</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for session in student.sessions %}
+                        <tr>
+                            <td>
+                                <strong>{{ session.resource_title }}</strong>
+                                <br>
+                                <small class="text-muted">{{ session.resource_type|title }}</small>
+                            </td>
+                            <td>{{ session.date }}</td>
+                            <td>
+                                {% if session.duration %}
+                                    {{ session.duration }}
+                                {% else %}
+                                    Not recorded
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if session.quiz_score is not none %}
+                                    <span class="badge {% if session.quiz_score >= 80 %}bg-success{% elif session.quiz_score >= 60 %}bg-warning{% else %}bg-danger{% endif %}">
+                                        {{ "%.1f"|format(session.quiz_score) }}%
+                                    </span>
+                                {% elif session.completion_percentage is defined and session.completion_percentage > 0 %}
+                                    <span class="badge {% if session.completion_percentage >= 80 %}bg-success{% elif session.completion_percentage >= 60 %}bg-warning{% else %}bg-danger{% endif %}">
+                                        {{ "%.1f"|format(session.completion_percentage) }}%
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Not completed</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if session.completed %}
+                                    <span class="badge bg-success">Completed</span>
+                                {% else %}
+                                    <span class="badge bg-warning">In Progress</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if session.ai_recommendation %}
+                                    <button class="btn btn-sm btn-outline-info" onclick="showAIFeedback('{{ session.resource_title|e }}', '{{ session.ai_recommendation|e }}')">
+                                        View Feedback
+                                    </button>
+                                {% else %}
+                                    <span class="text-muted">No recommendation</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if session.completed and session.quiz_score is not none and session.quiz_score < 70 %}
+                                    <a href="{{ url_for('grant_reassessment', student_id=student.id, resource_id=session.resource_id) }}" class="btn btn-sm btn-warning">
+                                        <i class="fas fa-redo me-1"></i>Grant Reassessment
+                                    </a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Performance Summary -->
+            <div class="row mt-4">
+                <div class="col-md-4">
+                    <div class="card bg-light">
+                        <div class="card-body text-center">
+                            <h5>Total Study Sessions</h5>
+                            <h3 class="text-primary">{{ student.sessions|length }}</h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card bg-light">
+                        <div class="card-body text-center">
+                            <h5>Average Score/Completion</h5>
+                            {% set scores = student.sessions|selectattr('quiz_score', 'defined')|selectattr('quiz_score', 'ne', none)|selectattr('quiz_score', 'number')|map(attribute='quiz_score')|list %}
+                            {% set completions = student.sessions|selectattr('completion_percentage', 'defined')|selectattr('completion_percentage', 'number')|map(attribute='completion_percentage')|list %}
+                            {% set all_scores = scores + completions %}
+                            {% if all_scores %}
+                                <h3 class="text-success">{{ "%.1f"|format(all_scores|sum / all_scores|length) }}%</h3>
+                            {% else %}
+                                <h3 class="text-muted">N/A</h3>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card bg-light">
+                        <div class="card-body text-center">
+                            <h5>Completion Rate</h5>
+                            {% set completed = student.sessions|selectattr('completed', 'equalto', true)|list %}
+                            <h3 class="text-info">{{ "%.1f"|format((completed|length / student.sessions|length) * 100) }}%</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            {% else %}
+            <div class="alert alert-info">
+                <h5>No study sessions recorded for this student.</h5>
+                <p class="mb-0">This student hasn't accessed any resources yet. Encourage them to start learning!</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- AI Feedback Modal -->
+<div class="modal fade" id="aiFeedbackModal" tabindex="-1" aria-labelledby="aiFeedbackModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="aiFeedbackModalLabel">Feedback</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <h6 class="text-muted mb-3">Resource: <span id="feedbackResourceTitle"></span></h6>
+                <div id="feedbackContent" class="alert alert-info">
+                    <!-- AI feedback content will be inserted here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Initialize tooltips
+var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+    return new bootstrap.Tooltip(tooltipTriggerEl)
+})
+
+// Function to show AI feedback in modal
+function showAIFeedback(resourceTitle, recommendation) {
+    document.getElementById('feedbackResourceTitle').textContent = resourceTitle;
+    document.getElementById('feedbackContent').innerHTML = recommendation;
+    
+    var modal = new bootstrap.Modal(document.getElementById('aiFeedbackModal'));
+    modal.show();
+}
+
+// Function to print all student reports
+function printAllReports() {
+    // Get all student IDs from the page
+    const studentCards = document.querySelectorAll('.card');
+    const studentIds = [];
+    
+    studentCards.forEach(card => {
+        const studentId = card.querySelector('[data-student-id]');
+        if (studentId) {
+            studentIds.push(studentId.getAttribute('data-student-id'));
+        }
+    });
+    
+    if (studentIds.length === 0) {
+        alert('No students found to print reports for.');
+        return;
+    }
+    
+    // Open each report in a new window for printing
+    studentIds.forEach((studentId, index) => {
+        setTimeout(() => {
+            const printUrl = `/teacher/student_printable_report/${studentId}`;
+            const printWindow = window.open(printUrl, '_blank');
+            
+            // Auto-print after a short delay
+            if (printWindow) {
+                setTimeout(() => {
+                    printWindow.print();
+                }, 1000);
+            }
+        }, index * 2000); // Stagger the prints by 2 seconds
+    });
+}
+</script>
+{% endblock %} 

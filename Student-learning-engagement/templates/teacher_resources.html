@@ -1,0 +1,262 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <h2>Educational Resources</h2>
+        
+        <!-- Add Resource Form -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4>Add New Resource</h4>
+                <a href="{{ url_for('test_email') }}" class="btn btn-outline-info btn-sm">
+                    <i class="fas fa-envelope me-1"></i>Test Email
+                </a>
+            </div>
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="mb-3">
+                        <label for="title" class="form-label">Title</label>
+                        <input type="text" class="form-control" id="title" name="title" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="resource_type" class="form-label">Resource Type</label>
+                        <select class="form-select" id="resource_type" name="resource_type" required onchange="toggleResourceFields()">
+                            <option value="note">Note (PDF/DOC)</option>
+                            <option value="video">Video</option>
+                            <option value="link">External Link</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="grade" class="form-label">Grade Level</label>
+                        <select class="form-select" id="grade" name="grade" required>
+                            <option value="1">Grade 1</option>
+                            <option value="2">Grade 2</option>
+                            <option value="3">Grade 3</option>
+                            <option value="4">Grade 4</option>
+                            <option value="5">Grade 5</option>
+                            <option value="6">Grade 6</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="access_time_limit" class="form-label">Access Time Limit (minutes)</label>
+                        <input type="number" class="form-control" id="access_time_limit" name="access_time_limit" min="0" max="480" placeholder="0 = No limit">
+                        <small class="form-text text-muted">Set how long students can access this resource. After this time, the page will expire automatically.</small>
+                    </div>
+                    <div id="fileField" class="mb-3">
+                        <label for="file" class="form-label">File</label>
+                        <input type="file" class="form-control" id="file" name="file">
+                    </div>
+                    <div id="urlField" class="mb-3" style="display: none;">
+                        <label for="url" class="form-label">URL</label>
+                        <input type="url" class="form-control" id="url" name="url">
+                    </div>
+                    <!-- AI options removed: quizzes are created manually after upload -->
+                    <button type="submit" class="btn btn-primary">Add Resource</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Resources List -->
+        <div class="card">
+            <div class="card-header">
+                <h4>Your Resources</h4>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th>Type</th>
+                                <th>Grade</th>
+                                <th>Quiz Status</th>
+                                <th>Created At</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for resource in resources %}
+                            <tr>
+                                <td>{{ resource.title }}</td>
+                                <td>{{ resource.resource_type.title() }}</td>
+                                <td>Grade {{ resource.grade }}</td>
+                                <td>
+                                    {% if quiz_counts[resource.id] > 0 %}
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-check-circle me-1"></i>Quiz Created ({{ quiz_counts[resource.id] }} questions)
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-warning">
+                                            <i class="fas fa-exclamation-triangle me-1"></i>No Quiz Yet
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ resource.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td>
+                                    {% if resource.resource_type == 'link' %}
+                                        <a href="{{ resource.url }}" target="_blank" class="btn btn-primary btn-sm">Open Link</a>
+                                    {% elif resource.file_path %}
+                                        <a href="{{ url_for('static', filename=resource.file_path) }}" target="_blank" class="btn btn-primary btn-sm" download>Download</a>
+                                    {% else %}
+                                        <span class="text-muted">No file available</span>
+                                    {% endif %}
+                                    
+                                    <!-- Assignment Actions -->
+                                    <div class="btn-group" role="group">
+                                        <button type="button" class="btn btn-success btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                                            <i class="fas fa-share-alt me-1"></i>Assign
+                                        </button>
+                                        <ul class="dropdown-menu">
+                                            <li><a class="dropdown-item" href="#" onclick="assignToAll({{ resource.id }})">
+                                                <i class="fas fa-users me-2"></i>Assign to All Students
+                                            </a></li>
+                                            <li><a class="dropdown-item" href="#" onclick="assignToGrade({{ resource.id }}, '{{ resource.grade }}')">
+                                                <i class="fas fa-graduation-cap me-2"></i>Assign to Grade {{ resource.grade }}
+                                            </a></li>
+                                            <li><a class="dropdown-item" href="#" onclick="assignWithKey({{ resource.id }})">
+                                                <i class="fas fa-key me-2"></i>Create Access Key
+                                            </a></li>
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li><a class="dropdown-item" href="#" onclick="viewAssignments({{ resource.id }})">
+                                                <i class="fas fa-eye me-2"></i>View Assignments
+                                            </a></li>
+                                        </ul>
+                                    </div>
+                                    
+                                    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('view_student_notes', resource_id=resource.id) }}">
+                                        <i class="fas fa-sticky-note me-1"></i>Notes
+                                    </a>
+                                    <a class="btn btn-outline-primary btn-sm" href="{{ url_for('create_quiz', resource_id=resource.id) }}">
+                                        {% if quiz_counts[resource.id] > 0 %}
+                                            <i class="fas fa-edit me-1"></i>Edit Quiz
+                                        {% else %}
+                                            <i class="fas fa-plus-circle me-1"></i>Create Quiz
+                                        {% endif %}
+                                    </a>
+                                    
+                                    <form method="POST" action="{{ url_for('delete_resource', resource_id=resource.id) }}" style="display:inline;">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this resource?')">
+                                            <i class="fas fa-trash me-1"></i>Delete
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- AI suggestion UI removed -->
+
+<script>
+function toggleResourceFields() {
+    const resourceType = document.getElementById('resource_type').value;
+    const fileField = document.getElementById('fileField');
+    const urlField = document.getElementById('urlField');
+    
+    if (resourceType === 'link') {
+        fileField.style.display = 'none';
+        urlField.style.display = 'block';
+        document.getElementById('file').required = false;
+        document.getElementById('url').required = true;
+    } else {
+        fileField.style.display = 'block';
+        urlField.style.display = 'none';
+        document.getElementById('file').required = true;
+        document.getElementById('url').required = false;
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {});
+
+// Assignment functions
+function assignToAll(resourceId) {
+    if (confirm('Assign this resource to all your students?')) {
+        fetch(`/teacher/assign_to_all/${resourceId}`, { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Resource assigned to all students successfully!');
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            });
+    }
+}
+
+function assignToGrade(resourceId, grade) {
+    if (confirm(`Assign this resource to all Grade ${grade} students?`)) {
+        fetch(`/teacher/assign_to_grade/${resourceId}/${grade}`, { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(`Resource assigned to Grade ${grade} students successfully!`);
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            });
+    }
+}
+
+function assignWithKey(resourceId) {
+    const key = prompt('Enter access key (leave empty for auto-generated):');
+    const maxStudents = prompt('Maximum number of students (default: 10):', '10');
+    
+    fetch(`/teacher/create_access_key/${resourceId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            access_key: key || null,
+            max_students: parseInt(maxStudents) || 10
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(`Access key created: ${data.access_key}\nShare this key with students.`);
+        } else {
+            alert('Error: ' + data.message);
+        }
+    });
+}
+
+function viewAssignments(resourceId) {
+    fetch(`/teacher/resource/${resourceId}/assignments`)
+        .then(response => response.json())
+        .then(data => {
+            let content = '<h6>Current Assignments:</h6>';
+            if (data.assignments && data.assignments.length > 0) {
+                content += '<ul class="list-group">';
+                data.assignments.forEach(assignment => {
+                    content += `<li class="list-group-item d-flex justify-content-between">
+                        <span>${assignment.student_name}</span>
+                        <span class="badge bg-${assignment.access_key ? 'warning' : 'success'}">
+                            ${assignment.access_key ? 'Access Key' : 'Direct'}
+                        </span>
+                    </li>`;
+                });
+                content += '</ul>';
+            } else {
+                content += '<p class="text-muted">No assignments yet.</p>';
+            }
+            
+            document.getElementById('suggestContent').innerHTML = content;
+            document.getElementById('suggestTitle').textContent = 'Resource Assignments';
+            new bootstrap.Modal(document.getElementById('suggestModal')).show();
+        });
+}
+
+// AI suggestion JS removed
+</script>
+{% endblock %} 

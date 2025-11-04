@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Engagement Report - {{ student.name }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        @media print {
+            @page {
+                margin: 0.5in;
+                size: A4;
+            }
+            body {
+                font-family: 'Arial', 'Helvetica', sans-serif;
+                font-size: 11px;
+                line-height: 1.5;
+                color: #000;
+                background: white;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            * {
+                -webkit-print-color-adjust: exact !important;
+                color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .page-break {
+                page-break-before: always;
+            }
+            .report-header {
+                background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+                color: white;
+                margin-bottom: 30px;
+                padding: 30px;
+                text-align: center;
+                border-radius: 15px;
+                box-shadow: 0 8px 16px rgba(33, 150, 243, 0.3);
+                border: 4px solid #fff;
+                position: relative;
+                overflow: hidden;
+            }
+            .report-header::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: linear-gradient(45deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+                pointer-events: none;
+            }
+            .report-header h1 {
+                font-size: 24px;
+                font-weight: 800;
+                margin: 0 0 8px 0;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+                color: white;
+                text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+                position: relative;
+                z-index: 1;
+            }
+            .report-header h2 {
+                font-size: 18px;
+                font-weight: 600;
+                margin: 0 0 15px 0;
+                color: white;
+                text-shadow: 1px 1px 2px rgba(0,0,0,0.4);
+                position: relative;
+                z-index: 1;
+            }
+            .report-header .student-info {
+                font-size: 12px;
+                margin-top: 10px;
+                color: white;
+                position: relative;
+                z-index: 1;
+                font-weight: 600;
+            }
+            .engagement-table {
+                width: 100%;
+                border-collapse: collapse;
+                margin: 25px 0;
+                font-size: 10px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                border-radius: 8px;
+                overflow: visible;
+                border: 2px solid #000;
+                page-break-inside: avoid;
+            }
+            .engagement-table th,
+            .engagement-table td {
+                border: 1px solid #000 !important;
+                padding: 8px 6px;
+                text-align: center;
+                vertical-align: middle;
+                word-wrap: break-word;
+                overflow-wrap: break-word;
+            }
+            .engagement-table th {
+                background: #F44336 !important;
+                color: black !important;
+                font-weight: 700;
+                font-size: 10px;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                text-shadow: none;
+                border: 1px solid #000 !important;
+                padding: 10px 8px;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            .engagement-table td:first-child {
+                text-align: left;
+                font-weight: 600;
+                background: #2196F3 !important;
+                color: white !important;
+                text-shadow: 1px 1px 1px rgba(0,0,0,0.4);
+                font-size: 10px;
+                border: 1px solid #000 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            .score-high {
+                background: #4CAF50 !important;
+                color: white !important;
+                font-weight: 700;
+                text-shadow: 1px 1px 1px rgba(0,0,0,0.5);
+                border: 1px solid #000 !important;
+                border-radius: 4px;
+                font-size: 10px;
+                padding: 2px 4px;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            .score-medium {
+                background: #FF9800 !important;
+                color: white !important;
+                font-weight: 700;
+                text-shadow: 1px 1px 1px rgba(0,0,0,0.5);
+                border: 1px solid #000 !important;
+                border-radius: 4px;
+                font-size: 10px;
+                padding: 2px 4px;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            .score-low {
+                background: #F44336 !important;
+                color: white !important;
+                font-weight: 700;
+                text-shadow: 1px 1px 1px rgba(0,0,0,0.5);
+                border: 1px solid #000 !important;
+                border-radius: 4px;
+                font-size: 10px;
+                padding: 2px 4px;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            .summary-stats {
+                display: flex;
+                justify-content: space-around;
+                margin: 25px 0;
+                padding: 30px 20px;
+                background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important;
+                border-radius: 12px;
+                box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+                border: 2px solid #000 !important;
+                page-break-inside: avoid;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            .stat-item {
+                text-align: center;
+                border-right: 2px solid #000;
+                padding: 20px 15px;
+                color: #000;
+                background: white;
+                border-radius: 8px;
+                margin: 0 8px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                min-width: 120px;
+            }
+            .stat-item:last-child {
+                border-right: none;
+            }
+            .stat-circle-print {
+                min-width: 60px;
+                min-height: 60px;
+                width: auto;
+                height: auto;
+                padding: 12px;
+                border: 3px solid #000;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin: 0 auto 12px auto;
+                background: #ffffff;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+                aspect-ratio: 1;
+                max-width: 90px;
+                max-height: 90px;
+            }
+            
+            .stat-value {
+                font-size: clamp(16px, 3.5vw, 20px);
+                font-weight: 900;
+                color: #000;
+                text-shadow: none;
+                margin: 0;
+                line-height: 1;
+                text-align: center;
+                white-space: nowrap;
+                max-width: 100%;
+                overflow: visible;
+                text-overflow: clip;
+                word-break: keep-all;
+                font-family: 'Arial', 'Helvetica', sans-serif;
+                display: block;
+                width: 100%;
+            }
+            .stat-label {
+                font-size: 9px;
+                color: #000;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                margin-top: 4px;
+                font-weight: 600;
+                text-shadow: none;
+            }
+            .section-title {
+                font-size: 14px;
+                font-weight: 800;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+                margin: 25px 0 15px 0;
+                padding: 10px 15px;
+                background: #2196F3 !important;
+                color: white !important;
+                border-radius: 4px;
+                text-shadow: 1px 1px 1px rgba(0,0,0,0.5);
+                border: 2px solid #000 !important;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                page-break-after: avoid;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            .analysis-section {
+                margin: 20px 0;
+                background: #FF9800 !important;
+                padding: 15px;
+                border-radius: 4px;
+                color: white !important;
+                border: 2px solid #000 !important;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                page-break-inside: avoid;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            .analysis-section h5 {
+                font-size: 13px;
+                font-weight: bold;
+                margin: 15px 0 8px 0;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                color: white;
+            }
+            .analysis-section ul {
+                margin: 8px 0;
+                padding-left: 20px;
+            }
+            .analysis-section li {
+                margin: 6px 0;
+                font-size: 11px;
+                color: white;
+            }
+            .recommendations {
+                background: #4CAF50 !important;
+                border-radius: 4px;
+                padding: 15px;
+                margin: 20px 0;
+                color: white !important;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                border: 2px solid #000 !important;
+                page-break-inside: avoid;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            .recommendations h5 {
+                font-size: 13px;
+                font-weight: bold;
+                margin: 0 0 15px 0;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                color: white;
+            }
+            .recommendations ul {
+                margin: 0;
+                padding-left: 20px;
+            }
+            .recommendations li {
+                margin: 8px 0;
+                font-size: 11px;
+                color: white;
+            }
+            .footer {
+                margin-top: 30px;
+                padding: 15px;
+                background: #f8f9fa !important;
+                color: #000 !important;
+                text-align: center;
+                font-size: 10px;
+                border-radius: 4px;
+                border: 2px solid #000 !important;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                text-shadow: none;
+                page-break-before: avoid;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+        }
+        
+        @media screen {
+            .print-button {
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                z-index: 1000;
+            }
+        }
+        
+        .engagement-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        .engagement-table th,
+        .engagement-table td {
+            border: 1px solid #000 !important;
+            padding: 8px;
+            text-align: center;
+        }
+        .engagement-table th {
+            background-color: #f8f9fa;
+            color: black !important;
+            font-weight: bold;
+        }
+        .score-high {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .score-medium {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        .score-low {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <!-- Print Button (hidden when printing) -->
+        <button class="btn btn-primary print-button no-print" onclick="window.print()">
+            <i class="fas fa-print me-1"></i>Print Report
+        </button>
+        
+        <!-- Report Header -->
+        <div class="report-header">
+            <h1>STUDENT ENGAGEMENT REPORT</h1>
+            <h2>{{ student.name }}</h2>
+            <div class="student-info">
+                <div style="display: flex; justify-content: space-between; max-width: 600px; margin: 0 auto;">
+                    <div><strong>Student ID:</strong> {{ student.student_id }}</div>
+                    <div><strong>Grade:</strong> {{ student.grade }}</div>
+                    <div><strong>Report Date:</strong> {{ report_date }}</div>
+                    <div><strong>Teacher:</strong> {{ teacher_name }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Summary Statistics -->
+        <div class="summary-stats">
+            <div class="stat-item">
+                <div class="stat-circle-print">
+                    <div class="stat-value">{{ total_sessions }}</div>
+                </div>
+                <div class="stat-label">TOTAL SESSIONS</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-circle-print">
+                    <div class="stat-value">{{ completed_sessions }}</div>
+                </div>
+                <div class="stat-label">COMPLETED</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-circle-print">
+                    <div class="stat-value">{{ "%.1f"|format(avg_score) }}%</div>
+                </div>
+                <div class="stat-label">AVG SCORE</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-circle-print">
+                    <div class="stat-value">{{ "%.1f"|format(avg_engagement) }}%</div>
+                </div>
+                <div class="stat-label">AVG ENGAGEMENT</div>
+            </div>
+        </div>
+
+        <!-- Student Engagement Metrics Table -->
+        <div class="section-title">STUDENT ENGAGEMENT METRICS</div>
+        <table class="engagement-table">
+            <thead>
+                <tr>
+                    <th>Resource</th>
+                    <th>Time Spent</th>
+                    <th>Scroll Depth</th>
+                    <th>Cursor Moves</th>
+                    <th>Clicks</th>
+                    <th>Focus Time</th>
+                    <th>Engagement Score</th>
+                    <th>Last Activity</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for session in engagement_sessions %}
+                <tr>
+                    <td class="text-left">{{ session.resource_title }}</td>
+                    <td>{{ session.time_spent }}</td>
+                    <td>{{ session.scroll_depth }}%</td>
+                    <td>{{ session.cursor_moves }}</td>
+                    <td>{{ session.clicks }}</td>
+                    <td>{{ session.focus_time }}</td>
+                    <td class="{% if session.engagement_score_numeric >= 80 %}score-high{% elif session.engagement_score_numeric >= 50 %}score-medium{% else %}score-low{% endif %}">
+                        {{ session.engagement_score }}%
+                    </td>
+                    <td>{{ session.last_activity }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Performance Analysis -->
+        <div class="page-break"></div>
+        <div class="section-title">PERFORMANCE ANALYSIS</div>
+        <div class="analysis-section">
+            <div style="display: flex; justify-content: space-between;">
+                <div style="width: 48%;">
+                    <h5>ENGAGEMENT LEVELS</h5>
+                    <ul>
+                        <li><strong>High Engagement (80%+):</strong> {{ high_engagement_count }} sessions</li>
+                        <li><strong>Medium Engagement (50-79%):</strong> {{ medium_engagement_count }} sessions</li>
+                        <li><strong>Low Engagement (&lt;50%):</strong> {{ low_engagement_count }} sessions</li>
+                    </ul>
+                </div>
+                <div style="width: 48%;">
+                    <h5>STUDY PATTERNS</h5>
+                    <ul>
+                        <li><strong>Average Session Duration:</strong> {{ avg_session_duration }}</li>
+                        <li><strong>Most Active Time:</strong> {{ most_active_time }}</li>
+                        <li><strong>Focus Efficiency:</strong> {{ focus_efficiency }}%</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recommendations -->
+        <div class="page-break"></div>
+        <div class="section-title">RECOMMENDATIONS</div>
+        <div class="recommendations">
+            <h5>BASED ON ENGAGEMENT ANALYSIS</h5>
+            <ul>
+                {% for recommendation in recommendations %}
+                <li>{{ recommendation }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            Generated on {{ report_date }} | Student Track System
+        </div>
+    </div>
+
+    <script>
+        // Auto-print when page loads (optional)
+        // window.onload = function() { window.print(); }
+    </script>
+</body>
+</html>

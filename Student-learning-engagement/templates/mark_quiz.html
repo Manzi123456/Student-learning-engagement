@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2><i class="fas fa-edit me-2"></i>Mark Quiz: {{ resource.title }}</h2>
+                <div>
+                    <a href="{{ url_for('quiz_results', quiz_id=resource.id) }}" class="btn btn-secondary me-2">
+                        <i class="fas fa-arrow-left"></i> Back to Quiz Results
+                    </a>
+                    <a href="{{ url_for('view_student_notes', resource_id=resource.id) }}" class="btn btn-info me-2">
+                        <i class="fas fa-sticky-note"></i> View Student Notes
+                    </a>
+                    <a href="{{ url_for('mark_essays', resource_id=resource.id) }}" class="btn btn-warning">
+                        <i class="fas fa-edit"></i> Mark Essays Only
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if not questions %}
+    <div class="card">
+        <div class="card-body text-center py-5">
+            <i class="fas fa-question-circle fa-3x text-muted mb-3"></i>
+            <h4 class="text-muted">No Questions Found</h4>
+            <p class="text-muted">This quiz doesn't have any questions yet. Please add questions to the quiz first.</p>
+            <a href="{{ url_for('edit_quiz', quiz_id=resource.id) }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Add Questions
+            </a>
+        </div>
+    </div>
+    {% elif not student_answers %}
+    <div class="card">
+        <div class="card-body text-center py-5">
+            <i class="fas fa-users fa-3x text-muted mb-3"></i>
+            <h4 class="text-muted">No Student Attempts Yet</h4>
+            <p class="text-muted">Students need to complete the quiz before you can mark their answers.</p>
+            <a href="{{ url_for('quiz_results', quiz_id=resource.id) }}" class="btn btn-primary">
+                <i class="fas fa-arrow-left"></i> Back to Quiz Results
+            </a>
+        </div>
+    </div>
+    {% else %}
+    <div class="row">
+        <div class="col-12">
+            <div class="alert alert-info">
+                <strong>Instructions:</strong> Review all student answers below. MCQ answers are automatically graded, but you can review them. Essay answers require manual grading.
+            </div>
+        </div>
+    </div>
+
+    <!-- Questions and Student Answers -->
+    {% for question in questions %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">
+                Question {{ loop.index }}: {{ question.question_type.upper() }}
+                <span class="badge bg-primary ms-2">{{ question.marks }} mark{{ 's' if question.marks != 1 else '' }}</span>
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="mb-3">
+                <h6 class="text-primary">Question Text:</h6>
+                <p class="mb-2">{{ question.question_text }}</p>
+                
+                {% if question.question_type == 'mcq' and question.options %}
+                <h6 class="text-success">Options:</h6>
+                <ul class="list-unstyled">
+                    {% for option in question.options %}
+                    <li class="{% if loop.index0 == 0 %}text-success fw-bold{% endif %}">
+                        {{ ['A', 'B', 'C', 'D'][loop.index0] }}. {{ option }}
+                        {% if loop.index0 == 0 %}<span class="badge bg-success ms-2">Correct Answer</span>{% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+            </div>
+
+            <!-- Student Answers -->
+            <div class="row">
+                {% for student_id, answers in student_answers.items() %}
+                    {% if question.id in answers %}
+                        {% set answer = answers[question.id] %}
+                        {% set student = student_info[student_id] %}
+                        <div class="col-md-6 mb-3">
+                            <div class="card border">
+                                <div class="card-header bg-light">
+                                    <h6 class="mb-0">
+                                        <i class="fas fa-user me-2"></i>{{ student.name }}
+                                        <small class="text-muted">({{ student.student_id }})</small>
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <h6 class="text-success">Student Answer:</h6>
+                                        <div class="border p-3 bg-light rounded">
+                                            {% if question.question_type == 'mcq' %}
+                                                <p class="mb-0">{{ answer.answer }}</p>
+                                            {% else %}
+                                                <p class="mb-0">{{ answer.answer }}</p>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+
+                                    {% if question.question_type == 'mcq' %}
+                                        <!-- MCQ Answer Status -->
+                                        <div class="mb-3">
+                                            <h6 class="text-info">Grading Status:</h6>
+                                            {% if answer.is_correct %}
+                                                <span class="badge bg-success">
+                                                    <i class="fas fa-check"></i> Correct ({{ question.marks }} marks)
+                                                </span>
+                                            {% else %}
+                                                <span class="badge bg-danger">
+                                                    <i class="fas fa-times"></i> Incorrect (0 marks)
+                                                </span>
+                                            {% endif %}
+                                        </div>
+                                    {% else %}
+                                        <!-- Essay Answer Grading -->
+                                        {% if answer.plagiarism_score is not none %}
+                                        <div class="mb-3">
+                                            <h6 class="text-warning">Similarity Check:</h6>
+                                            <div class="alert {% if answer.plagiarism_score >= 0.85 %}alert-danger{% elif answer.plagiarism_score >= 0.7 %}alert-warning{% else %}alert-secondary{% endif %}">
+                                                <strong>Similarity:</strong> {{ (answer.plagiarism_score * 100) | round(0) }}%
+                                                {% if answer.plagiarism_summary %}<br>{{ answer.plagiarism_summary }}{% endif %}
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                        
+                                        {% if answer.marks_awarded is not none %}
+                                        <div class="alert alert-info">
+                                            <strong>Already Graded:</strong> {{ answer.marks_awarded }}/{{ question.marks }} marks
+                                            {% if answer.teacher_feedback %}
+                                            <br><strong>Feedback:</strong> {{ answer.teacher_feedback }}
+                                            {% endif %}
+                                            <br><small class="text-muted">Graded on: {{ answer.graded_at.strftime('%B %d, %Y at %I:%M %p') if answer.graded_at else 'Unknown' }}</small>
+                                        </div>
+                                        {% endif %}
+                                        
+                                        <form method="POST" action="{{ url_for('grade_essay') }}">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <input type="hidden" name="answer_id" value="{{ answer.id }}">
+                                            
+                                            <div class="mb-3">
+                                                <label for="marks_{{ answer.id }}" class="form-label">Marks Awarded</label>
+                                                <input type="number" 
+                                                       class="form-control" 
+                                                       id="marks_{{ answer.id }}" 
+                                                       name="marks_awarded" 
+                                                       min="0" 
+                                                       max="{{ question.marks }}" 
+                                                       step="0.5"
+                                                       value="{{ answer.marks_awarded or '' }}"
+                                                       required>
+                                                <div class="form-text">Maximum: {{ question.marks }} marks</div>
+                                            </div>
+                                            
+                                            <div class="mb-3">
+                                                <label for="feedback_{{ answer.id }}" class="form-label">Teacher Feedback (Optional)</label>
+                                                <textarea class="form-control" 
+                                                          id="feedback_{{ answer.id }}" 
+                                                          name="feedback" 
+                                                          rows="3" 
+                                                          placeholder="Provide feedback to help the student improve...">{{ answer.teacher_feedback or '' }}</textarea>
+                                            </div>
+                                            
+                                            <button type="submit" class="btn btn-primary">
+                                                <i class="fas fa-check me-1"></i>Grade Essay
+                                            </button>
+                                        </form>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+
+    {% endif %}
+</div>
+
+<style>
+.border {
+    border: 1px solid #dee2e6 !important;
+}
+
+.bg-light {
+    background-color: #f8f9fa !important;
+}
+
+.bg-info.bg-opacity-10 {
+    background-color: rgba(13, 202, 240, 0.1) !important;
+}
+
+.form-check-input:disabled {
+    background-color: #e9ecef;
+    opacity: 1;
+}
+
+.badge {
+    font-size: 0.8em;
+}
+</style>
+{% endblock %}

@@ -1,0 +1,18 @@
+OPENAI_API_KEY=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
+SECRET_KEY=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
+
+# Outgoing email (optional)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=ezebieuwimpuhwe@gmail.com
+SMTP_PASSWORD=eecq pvcv iyor crkj
+SMTP_USE_TLS=true
+SMTP_USE_SSL=false
+FROM_EMAIL=ezebieuwimpuhwe@gmail.com
+
+
+
+# Initial admin bootstrap (used on startup if present)
+INITIAL_ADMIN_USERNAME=admin
+INITIAL_ADMIN_EMAIL=admin@example.com
+INITIAL_ADMIN_PASSWORD=StrongPassw0rd!

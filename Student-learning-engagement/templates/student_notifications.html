@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Notifications</h5>
+                <a href="{{ url_for('student_notifications') }}" class="btn btn-sm btn-outline-secondary">Refresh</a>
+            </div>
+            <div class="card-body">
+                <!-- Debug info -->
+                <div class="alert alert-info">
+                    <strong>Debug Info:</strong> 
+                    Notifications variable: {{ notifications }}<br>
+                    Notifications length: {{ notifications|length if notifications else 'None' }}<br>
+                    Notifications type: {{ notifications.__class__.__name__ if notifications else 'None' }}
+                </div>
+                
+                {% if notifications and notifications|length > 0 %}
+                    <div class="list-group">
+                        {% for n in notifications %}
+                            <a href="#" class="list-group-item d-flex justify-content-between align-items-start {% if not n.is_read %}list-group-item-warning{% endif %} notification-item"
+                               data-title="{{ n.title|e }}"
+                               data-message="{{ n.message|e }}"
+                               data-created="{{ n.created_at.strftime('%B %d, %Y %I:%M %p') }}"
+                               data-id="{{ n.id }}"
+                               {% if n.resource_id %}data-resource-url="{{ url_for('view_resource', resource_id=n.resource_id) }}"{% endif %}>
+                                <div class="ms-2 me-auto">
+                                    <div class="fw-bold">{{ n.title }}</div>
+                                    <div class="text-truncate" style="max-width: 60ch;">{{ n.message }}</div>
+                                    <small class="text-muted">{{ n.created_at.strftime('%B %d, %Y %I:%M %p') }}</small>
+                                </div>
+                                <span class="ms-2">
+                                    {% if not n.is_read %}
+                                        <span class="badge bg-primary">New</span>
+                                    {% endif %}
+                                </span>
+                            </a>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-bell-slash fa-3x text-muted mb-3"></i>
+                        <p class="text-muted fs-5">No notifications yet.</p>
+                        <small class="text-muted">You'll see new notifications here when they arrive.</small>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Notification Modal -->
+<div class="modal fade" id="notificationModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="notificationModalLabel">Notification</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted" id="notificationDate"></p>
+                <pre id="notificationMessage" class="mb-0" style="white-space: pre-wrap;"></pre>
+            </div>
+            <div class="modal-footer">
+                <a id="notificationResourceLink" href="#" class="btn btn-outline-secondary" target="_blank" style="display: none;">
+                    View Resource
+                </a>
+                <form id="notificationMarkReadForm" method="POST" action="#">
+                    <button type="submit" class="btn btn-primary">Mark as read & remove</button>
+                </form>
+            </div>
+        </div>
+    </div>
+ </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var modalEl = document.getElementById('notificationModal');
+    var modal = new bootstrap.Modal(modalEl);
+    var titleEl = document.getElementById('notificationModalLabel');
+    var dateEl = document.getElementById('notificationDate');
+    var msgEl = document.getElementById('notificationMessage');
+    var resourceLink = document.getElementById('notificationResourceLink');
+    var markForm = document.getElementById('notificationMarkReadForm');
+
+    document.querySelectorAll('.notification-item').forEach(function(item) {
+        item.addEventListener('click', function(e) {
+            e.preventDefault();
+            var title = this.getAttribute('data-title') || 'Notification';
+            var message = this.getAttribute('data-message') || '';
+            var created = this.getAttribute('data-created') || '';
+            var id = this.getAttribute('data-id');
+            var resUrl = this.getAttribute('data-resource-url');
+
+            titleEl.textContent = title;
+            dateEl.textContent = created;
+            msgEl.textContent = message;
+            if (resUrl) {
+                resourceLink.style.display = '';
+                resourceLink.href = resUrl;
+            } else {
+                resourceLink.style.display = 'none';
+                resourceLink.href = '#';
+            }
+            markForm.action = '/student/notifications/' + id + '/read';
+            modal.show();
+        });
+    });
+});
+</script>
+{% endblock %}

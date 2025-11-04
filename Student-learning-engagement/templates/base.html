@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>Student Learning Engagement Tracking System (SLETS)</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .navbar-brand {
+            font-weight: bold;
+        }
+        .card {
+            border: none;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        }
+        .card-header {
+            border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+        }
+        .btn {
+            border-radius: 0.375rem;
+        }
+        .form-control, .form-select {
+            border-radius: 0.375rem;
+        }
+        .alert {
+            border-radius: 0.375rem;
+        }
+    </style>
+</head>
+<body>
+    {% if current_user.is_authenticated %}
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('index') }}">
+                <i class="fas fa-graduation-cap me-2"></i>SLETS
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    {% if current_user.role == 'admin' %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('admin_dashboard') }}">
+                                <i class="fas fa-user-shield me-1"></i>Admin
+                            </a>
+                        </li>
+                    {% elif current_user.role == 'teacher' %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('teacher_dashboard') }}">
+                                <i class="fas fa-tachometer-alt me-1"></i>Dashboard
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('teacher_resources') }}">
+                                <i class="fas fa-book me-1"></i>Resources & Assignments
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('manage_access_keys') }}">
+                                <i class="fas fa-key me-1"></i>Access Keys
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('teacher_quizzes') }}">
+                                <i class="fas fa-clipboard-list me-1"></i>Quizzes
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link position-relative" href="#" data-bs-toggle="modal" data-bs-target="#notificationModal">
+                                <i class="fas fa-bell me-1"></i>Notifications
+                                <span id="notificationBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="display: none;">
+                                    <span id="notificationCount">0</span>
+                                </span>
+                            </a>
+                        </li>
+                    {% else %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('student_dashboard') }}">
+                                <i class="fas fa-home me-1"></i>Dashboard
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('student_resources') }}">
+                                <i class="fas fa-book-open me-1"></i>Resources
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('student_my_progress') }}">
+                                <i class="fas fa-chart-line me-1"></i>My Progress
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link position-relative" href="#" data-bs-toggle="modal" data-bs-target="#notificationModal">
+                                <i class="fas fa-bell me-1"></i>Notifications
+                                <span id="notificationBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="display: none;">
+                                    <span id="notificationCount">0</span>
+                                </span>
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+                <ul class="navbar-nav">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user me-1"></i>{{ current_user.username }}
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('edit_profile') }}">
+                                <i class="fas fa-user-cog me-1"></i>Edit Profile
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('logout') }}">
+                                <i class="fas fa-sign-out-alt me-1"></i>Logout
+                            </a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    {% endif %}
+
+    <main class="py-4">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="container">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+        
+        {% block content %}{% endblock %}
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Notification Modal -->
+    <div class="modal fade" id="notificationModal" tabindex="-1" aria-labelledby="notificationModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="notificationModalLabel">
+                        <i class="fas fa-bell me-2"></i>Notifications
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="notificationList">
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2 text-muted">Loading notifications...</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" id="markAllReadBtn" style="display: none;">
+                        <i class="fas fa-check me-1"></i>Mark All as Read
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // Notification system
+    let notifications = [];
+    let unreadCount = 0;
+
+    // Load notifications when modal opens
+    document.getElementById('notificationModal').addEventListener('show.bs.modal', function () {
+        loadNotifications();
+    });
+
+    // Load notifications on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        loadNotifications();
+        // Update badge every 30 seconds
+        setInterval(loadNotifications, 30000);
+    });
+
+    function loadNotifications() {
+        fetch('/api/notifications')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    notifications = data.notifications;
+                    unreadCount = data.unread_count;
+                    updateNotificationBadge();
+                    displayNotifications();
+                } else {
+                    console.error('Failed to load notifications:', data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error loading notifications:', error);
+            });
+    }
+
+    function updateNotificationBadge() {
+        const badge = document.getElementById('notificationBadge');
+        const count = document.getElementById('notificationCount');
+        
+        if (unreadCount > 0) {
+            count.textContent = unreadCount > 99 ? '99+' : unreadCount;
+            badge.style.display = 'inline-block';
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+
+    function displayNotifications() {
+        const container = document.getElementById('notificationList');
+        const markAllBtn = document.getElementById('markAllReadBtn');
+        
+        if (notifications.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-4">
+                    <i class="fas fa-bell-slash fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No notifications</h5>
+                    <p class="text-muted">You're all caught up!</p>
+                </div>
+            `;
+            markAllBtn.style.display = 'none';
+            return;
+        }
+
+        let html = '<div class="list-group">';
+        notifications.forEach(notification => {
+            const isUnread = !notification.is_read;
+            const timeAgo = getTimeAgo(notification.created_at);
+            
+            html += `
+                <div class="list-group-item list-group-item-action ${isUnread ? 'list-group-item-warning' : ''}" 
+                     data-notification-id="${notification.id}">
+                    <div class="d-flex w-100 justify-content-between">
+                        <h6 class="mb-1 ${isUnread ? 'fw-bold' : ''}">${escapeHtml(notification.title)}</h6>
+                        <small class="text-muted">${timeAgo}</small>
+                    </div>
+                    <p class="mb-1">${escapeHtml(notification.message)}</p>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-muted">
+                            ${notification.resource_url ? 
+                                `<a href="${notification.resource_url}" class="text-decoration-none">
+                                    <i class="fas fa-external-link-alt me-1"></i>View Resource
+                                </a>` : ''
+                            }
+                        </small>
+                        ${isUnread ? 
+                            `<button class="btn btn-sm btn-outline-primary mark-read-btn" data-id="${notification.id}">
+                                <i class="fas fa-check me-1"></i>Mark as Read
+                            </button>` : 
+                            '<small class="text-success"><i class="fas fa-check me-1"></i>Read</small>'
+                        }
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+        
+        container.innerHTML = html;
+        markAllBtn.style.display = unreadCount > 0 ? 'inline-block' : 'none';
+        
+        // Add event listeners for mark as read buttons
+        document.querySelectorAll('.mark-read-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const notificationId = this.dataset.id;
+                markAsRead(notificationId);
+            });
+        });
+    }
+
+    function markAsRead(notificationId) {
+        // Use the correct endpoint based on user role
+        const endpoint = '{{ "student/" if current_user.role == "student" else "api/" }}notifications/${notificationId}/read';
+        fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: JSON.stringify({})
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Update local state
+                const notification = notifications.find(n => n.id == notificationId);
+                if (notification) {
+                    notification.is_read = true;
+                }
+                unreadCount = Math.max(0, unreadCount - 1);
+                updateNotificationBadge();
+                displayNotifications();
+            } else {
+                console.error('Failed to mark notification as read:', data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error marking notification as read:', error);
+        });
+    }
+
+    // Mark all as read functionality
+    document.getElementById('markAllReadBtn').addEventListener('click', function() {
+        const unreadNotifications = notifications.filter(n => !n.is_read);
+        let completed = 0;
+        
+        if (unreadNotifications.length === 0) return;
+        
+        // Disable button to prevent multiple clicks
+        const markAllBtn = this;
+        const originalText = markAllBtn.innerHTML;
+        markAllBtn.disabled = true;
+        markAllBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Marking...';
+        
+        unreadNotifications.forEach(notification => {
+            markAsRead(notification.id);
+            completed++;
+            if (completed === unreadNotifications.length) {
+                // All notifications marked as read
+                unreadCount = 0;
+                updateNotificationBadge();
+                displayNotifications();
+                
+                // Re-enable button
+                markAllBtn.disabled = false;
+                markAllBtn.innerHTML = originalText;
+            }
+        });
+    });
+
+    function getTimeAgo(dateString) {
+        const now = new Date();
+        const date = new Date(dateString);
+        const diffInSeconds = Math.floor((now - date) / 1000);
+        
+        if (diffInSeconds < 60) return 'Just now';
+        if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+        if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+        return `${Math.floor(diffInSeconds / 86400)}d ago`;
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    </script>
+</body>
+</html> 

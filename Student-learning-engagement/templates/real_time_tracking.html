@@ -1,0 +1,535 @@
+{% extends "base.html" %}
+
+{% block title %}Real-Time Student Tracking{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h2 class="mb-4">
+                <i class="fas fa-chart-line"></i> Real-Time Student Tracking Dashboard
+                <button id="mlAnalyticsBtn" class="btn btn-primary ml-3">
+                    <i class="fas fa-brain"></i> ML Analytics
+                </button>
+            </h2>
+        </div>
+    </div>
+
+    <!-- ML Analytics Chart Section (Hidden by default) -->
+    <div id="mlAnalyticsSection" class="row mb-4" style="display: none;">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-brain"></i> Machine Learning Analytics</h5>
+                    <p class="text-muted mb-0">AI-powered analysis of student engagement patterns</p>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <canvas id="mlEngagementChart" width="400" height="300"></canvas>
+                        </div>
+                        <div class="col-md-6">
+                            <canvas id="mlBehaviorChart" width="400" height="300"></canvas>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <canvas id="mlTimeAnalysisChart" width="400" height="300"></canvas>
+                        </div>
+                        <div class="col-md-6">
+                            <canvas id="mlPredictionChart" width="400" height="300"></canvas>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <div id="mlInsights" class="alert alert-info">
+                                <h6><i class="fas fa-lightbulb"></i> ML Insights</h6>
+                                <div id="mlInsightsContent">
+                                    Loading AI insights...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Existing Dashboard Content -->
+    <div class="row">
+        <!-- Active Study Sessions -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-users"></i> Active Study Sessions</h5>
+                </div>
+                <div class="card-body">
+                    <div id="activeSessions">
+                        <p class="text-muted">Loading active sessions...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Engagement Activity -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-chart-bar"></i> Recent Engagement Activity</h5>
+                </div>
+                <div class="card-body">
+                    <div id="recentEngagement">
+                        <p class="text-muted">Loading engagement data...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Currently Active Students -->
+    <div class="row">
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-user-clock"></i> Currently Active Students</h5>
+                </div>
+                <div class="card-body">
+                    <div id="activeStudents">
+                        <p class="text-muted">Loading active students...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Real-Time Activity Feed -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-rss"></i> Real-Time Activity Feed</h5>
+                </div>
+                <div class="card-body">
+                    <div id="recentActivities">
+                        <p class="text-muted">Loading activity feed...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js Library -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+let mlCharts = {};
+let refreshInterval;
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize ML Analytics button
+    document.getElementById('mlAnalyticsBtn').addEventListener('click', function() {
+        const section = document.getElementById('mlAnalyticsSection');
+        if (section.style.display === 'none') {
+            section.style.display = 'block';
+            this.innerHTML = '<i class="fas fa-eye-slash"></i> Hide ML Analytics';
+            this.classList.remove('btn-primary');
+            this.classList.add('btn-secondary');
+            loadMLAnalytics();
+        } else {
+            section.style.display = 'none';
+            this.innerHTML = '<i class="fas fa-brain"></i> ML Analytics';
+            this.classList.remove('btn-secondary');
+            this.classList.add('btn-primary');
+        }
+    });
+
+    // Initial data load
+    refreshData();
+    
+    // Set up auto-refresh
+    refreshInterval = setInterval(refreshData, 30000); // Refresh every 30 seconds
+});
+
+function refreshData() {
+    fetchActiveSessions();
+    fetchRecentEngagement();
+    fetchActiveStudents();
+    fetchRecentActivities();
+}
+
+function fetchActiveSessions() {
+    fetch('/api/teacher/active_sessions')
+        .then(response => response.json())
+        .then(data => {
+            const container = document.getElementById('activeSessions');
+            if (data.sessions && data.sessions.length > 0) {
+                let html = '';
+                data.sessions.forEach(session => {
+                    const duration = session.duration ? Math.round(session.duration / 60) : 'N/A';
+                    const progress = session.progress || 0;
+                    html += `
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between">
+                                <strong>${session.student_name}</strong>
+                                <small class="text-muted">${session.started_time}</small>
+                            </div>
+                            <div class="text-muted small">Resource: ${session.resource_title}</div>
+                            <div class="progress mt-1" style="height: 5px;">
+                                <div class="progress-bar" style="width: ${progress}%"></div>
+                            </div>
+                            <div class="text-muted small">Session duration: ${duration} min</div>
+                        </div>
+                    `;
+                });
+                container.innerHTML = html;
+            } else {
+                container.innerHTML = '<p class="text-muted">No active sessions</p>';
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching active sessions:', error);
+            document.getElementById('activeSessions').innerHTML = '<p class="text-danger">Error loading active sessions</p>';
+        });
+}
+
+function fetchRecentEngagement() {
+    fetch('/api/teacher/student_activity/all')
+        .then(response => response.json())
+        .then(data => {
+            const container = document.getElementById('recentEngagement');
+            const engagement = Array.isArray(data.engagement) ? data.engagement : [];
+            if (engagement.length > 0) {
+                let html = '<div class="table-responsive"><table class="table table-sm">';
+                html += '<thead><tr><th>Student</th><th>Resource</th><th>Engagement</th><th>Time Spent</th><th>Scroll Depth</th><th>Cursor Moves</th><th>Clicks</th><th>Focus Time</th><th>Last Activity</th><th>Date</th></tr></thead><tbody>';
+                
+                engagement.slice(0, 10).forEach(item => {
+                    const engagementScore = item.engagement_score || 0;
+                    // Prefer per-session time; fall back to cumulative if unavailable
+                    const seconds = (item.session_time_spent != null ? item.session_time_spent : item.total_time_spent) || 0;
+                    const timeSpent = Math.max(0, Math.round(seconds / 60));
+                    const scrollDepth = item.scroll_depth || 0;
+                    const focusTime = item.focus_time ? Math.round(item.focus_time / 60) : 0;
+                    const lastActivity = item.last_updated ? getTimeAgo(item.last_updated) : '—';
+                    const lastDate = item.last_updated ? formatDateTimeLocal(item.last_updated) : '—';
+                    
+                    const cursorMoves = item.cursor_movements || 0;
+                    const clicks = item.clicks || 0;
+                    
+                    html += `
+                        <tr>
+                            <td>${item.student_name}</td>
+                            <td>${item.resource_title}</td>
+                            <td><span class="badge badge-${getEngagementColor(engagementScore)}">${engagementScore}%</span></td>
+                            <td>${timeSpent}m</td>
+                            <td>${scrollDepth}%</td>
+                            <td>${cursorMoves}</td>
+                            <td>${clicks}</td>
+                            <td>${focusTime}m</td>
+                            <td>${lastActivity}</td>
+                            <td>${lastDate}</td>
+                        </tr>
+                    `;
+                });
+                html += '</tbody></table></div>';
+                container.innerHTML = html;
+            } else {
+                container.innerHTML = '<p class="text-muted">No recent engagement data</p>';
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching recent engagement:', error);
+            document.getElementById('recentEngagement').innerHTML = '<p class="text-danger">Error loading engagement data</p>';
+        });
+}
+
+function fetchActiveStudents() {
+    fetch('/api/teacher/active_students')
+        .then(response => response.json())
+        .then(data => {
+            const container = document.getElementById('activeStudents');
+            if (data.students && data.students.length > 0) {
+                let html = '';
+                data.students.forEach(student => {
+                    html += `
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div>
+                                <strong>${student.name}</strong>
+                                <div class="text-muted small">${student.current_resource}</div>
+                            </div>
+                            <span class="badge badge-success">Active</span>
+                        </div>
+                    `;
+                });
+                container.innerHTML = html;
+            } else {
+                container.innerHTML = '<p class="text-muted">No currently active students</p>';
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching active students:', error);
+            document.getElementById('activeStudents').innerHTML = '<p class="text-danger">Error loading active students</p>';
+        });
+}
+
+function fetchRecentActivities() {
+    fetch('/api/teacher/recent_activities')
+        .then(response => response.json())
+        .then(data => {
+            const container = document.getElementById('recentActivities');
+            if (data.activities && data.activities.length > 0) {
+                let html = '';
+                data.activities.slice(0, 15).forEach(activity => {
+                    const timeAgo = getTimeAgo(activity.timestamp);
+                    const absDate = formatDateTimeLocal(activity.timestamp);
+                    html += `
+                        <div class="mb-2">
+                            <div class="d-flex justify-content-between">
+                                <strong>${activity.student_name}</strong>
+                                <small class="text-muted">${timeAgo} — ${absDate}</small>
+                            </div>
+                            <div class="text-muted small">${activity.activity_type} - ${activity.resource_title}</div>
+                        </div>
+                    `;
+                });
+                container.innerHTML = html;
+            } else {
+                container.innerHTML = '<p class="text-muted">No recent activities</p>';
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching recent activities:', error);
+            document.getElementById('recentActivities').innerHTML = '<p class="text-danger">Error loading activity feed</p>';
+        });
+}
+
+function loadMLAnalytics() {
+    fetch('/api/teacher/ml_analytics')
+        .then(response => response.json())
+        .then(data => {
+            createMLCharts(data);
+            updateMLInsights(data);
+        })
+        .catch(error => {
+            console.error('Error loading ML analytics:', error);
+            document.getElementById('mlInsightsContent').innerHTML = '<p class="text-danger">Error loading ML analytics</p>';
+        });
+}
+
+function createMLCharts(data) {
+    // Engagement Pattern Chart
+    const engagementCtx = document.getElementById('mlEngagementChart').getContext('2d');
+    if (mlCharts.engagement) mlCharts.engagement.destroy();
+    
+    mlCharts.engagement = new Chart(engagementCtx, {
+        type: 'radar',
+        data: {
+            labels: ['Focus Time', 'Scroll Depth', 'Click Activity', 'Cursor Movement', 'Return Rate', 'Reading Speed'],
+            datasets: [{
+                label: 'Average Engagement',
+                data: [
+                    data.avg_focus_percentage || 0,
+                    data.avg_scroll_percentage || 0,
+                    data.avg_click_percentage || 0,
+                    data.avg_cursor_percentage || 0,
+                    data.avg_return_percentage || 0,
+                    data.avg_reading_percentage || 0
+                ],
+                backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Engagement Pattern Analysis'
+                }
+            },
+            scales: {
+                r: {
+                    beginAtZero: true,
+                    max: 100
+                }
+            }
+        }
+    });
+
+    // Behavior Analysis Chart
+    const behaviorCtx = document.getElementById('mlBehaviorChart').getContext('2d');
+    if (mlCharts.behavior) mlCharts.behavior.destroy();
+    
+    mlCharts.behavior = new Chart(behaviorCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Focused', 'Distracted', 'Active', 'Idle'],
+            datasets: [{
+                data: [
+                    data.focus_percentage || 0,
+                    data.distraction_percentage || 0,
+                    data.activity_percentage || 0,
+                    data.idle_percentage || 0
+                ],
+                backgroundColor: [
+                    'rgba(75, 192, 192, 0.8)',
+                    'rgba(255, 99, 132, 0.8)',
+                    'rgba(54, 162, 235, 0.8)',
+                    'rgba(255, 205, 86, 0.8)'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Behavior Distribution'
+                }
+            }
+        }
+    });
+
+    // Time Analysis Chart
+    const timeCtx = document.getElementById('mlTimeAnalysisChart').getContext('2d');
+    if (mlCharts.time) mlCharts.time.destroy();
+    
+    mlCharts.time = new Chart(timeCtx, {
+        type: 'line',
+        data: {
+            labels: data.time_labels || ['0-5m', '5-10m', '10-15m', '15-20m', '20-25m', '25-30m'],
+            datasets: [{
+                label: 'Engagement Over Time',
+                data: data.engagement_over_time || [0, 0, 0, 0, 0, 0],
+                borderColor: 'rgba(75, 192, 192, 1)',
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Engagement Over Time'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100
+                }
+            }
+        }
+    });
+
+    // Success Prediction Chart
+    const predictionCtx = document.getElementById('mlPredictionChart').getContext('2d');
+    if (mlCharts.prediction) mlCharts.prediction.destroy();
+    
+    mlCharts.prediction = new Chart(predictionCtx, {
+        type: 'bar',
+        data: {
+            labels: ['Low Risk', 'Medium Risk', 'High Risk'],
+            datasets: [{
+                label: 'Success Prediction',
+                data: [
+                    data.low_risk_percentage || 0,
+                    data.medium_risk_percentage || 0,
+                    data.high_risk_percentage || 0
+                ],
+                backgroundColor: [
+                    'rgba(75, 192, 192, 0.8)',
+                    'rgba(255, 205, 86, 0.8)',
+                    'rgba(255, 99, 132, 0.8)'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Success Risk Assessment'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100
+                }
+            }
+        }
+    });
+}
+
+function updateMLInsights(data) {
+    const insights = data.insights || [];
+    let html = '';
+    
+    if (insights.length > 0) {
+        insights.forEach(insight => {
+            html += `<p><strong>${insight.title}:</strong> ${insight.description}</p>`;
+        });
+    } else {
+        html = '<p>No specific insights available at this time. Continue monitoring student activity for AI-generated recommendations.</p>';
+    }
+    
+    document.getElementById('mlInsightsContent').innerHTML = html;
+}
+
+function getEngagementColor(score) {
+    if (score >= 80) return 'success';
+    if (score >= 60) return 'warning';
+    return 'danger';
+}
+
+function parseTimestampLocal(timestamp) {
+    // If already a Date, return as-is
+    if (timestamp instanceof Date) return timestamp;
+
+    // If numeric epoch (seconds or ms)
+    if (typeof timestamp === 'number') {
+        // Assume seconds if too small
+        return new Date(timestamp < 1e12 ? timestamp * 1000 : timestamp);
+    }
+
+    // If ISO string with timezone designator, let Date handle it
+    if (typeof timestamp === 'string' && /[zZ]|[+-]\d{2}:?\d{2}/.test(timestamp)) {
+        return new Date(timestamp);
+    }
+
+    // Server now returns: "YYYY-MM-DD HH:MM:SS" (local time)
+    if (typeof timestamp === 'string') {
+        const m = timestamp.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})$/);
+        if (m) {
+            const [_, y, mo, d, h, mi, s] = m;
+            return new Date(Number(y), Number(mo) - 1, Number(d), Number(h), Number(mi), Number(s));
+        }
+    }
+
+    // Fallback
+    return new Date(timestamp);
+}
+
+function getTimeAgo(timestamp) {
+    const now = new Date();
+    const time = parseTimestampLocal(timestamp);
+    const diffMs = now.getTime() - time.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    return `${Math.floor(diffHours / 24)}d ago`;
+}
+
+function formatDateTimeLocal(timestamp) {
+    const d = parseTimestampLocal(timestamp);
+    // Use user's locale for readability
+    return d.toLocaleString();
+}
+
+</script>
+{% endblock %}

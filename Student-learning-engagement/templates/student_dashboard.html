@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Student Information</h5>
+            </div>
+            <div class="card-body">
+                {% if student %}
+                    <p><strong>Name:</strong> {{ student.name }}</p>
+                    <p><strong>Student ID:</strong> {{ student.student_id }}</p>
+                    <p><strong>Grade:</strong> {{ student.grade }}</p>
+                {% else %}
+                    <div class="alert alert-warning">No student information found.</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Progress & Recommendations Button -->
+        <div class="card mb-4">
+            <div class="card-body text-center">
+                <a href="{{ url_for('student_my_progress') }}" class="btn btn-success btn-lg">
+                    <i class="fas fa-chart-line me-2"></i>
+                    View My Progress & Recommendations
+                </a>
+                <p class="text-muted mt-2">Get personalized learning insights and recommendations</p>
+            </div>
+        </div>
+
+        <!-- Quiz Performance Summary -->
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>Quiz Performance</h5>
+            </div>
+            <div class="card-body">
+                {% if quiz_stats %}
+                    <div class="text-center mb-3">
+                        <h3 class="text-primary">{{ "%.1f"|format(quiz_stats.average_score) }}%</h3>
+                        <small class="text-muted">Average Score</small>
+                    </div>
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <h5 class="text-success">{{ quiz_stats.completed_quizzes }}</h5>
+                            <small>Completed</small>
+                        </div>
+                        <div class="col-6">
+                            <h5 class="text-warning">{{ quiz_stats.total_quizzes }}</h5>
+                            <small>Total</small>
+                        </div>
+                    </div>
+                {% else %}
+                    <p class="text-muted">No quiz data available</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Recent Educational Resources</h5>
+                <a href="{{ url_for('student_resources') }}" class="btn btn-primary">View All Resources</a>
+            </div>
+            <div class="card-body">
+                {% if assignments %}
+                    <div class="list-group">
+                        {% for resource, assignment in assignments[:3] %}
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div class="flex-grow-1">
+                                        <h6 class="mb-1">{{ resource.title }}</h6>
+                                        <p class="mb-1">{{ resource.description }}</p>
+                                        <small class="text-muted">
+                                            Type: {{ resource.resource_type.title() }} | 
+                                            Created: {{ resource.created_at.strftime('%B %d, %Y') }}
+                                            {% if resource.access_time_limit and resource.access_time_limit > 0 %}
+                                                | <span class="text-warning"><i class="fas fa-clock me-1"></i>{{ resource.access_time_limit }} min limit</span>
+                                            {% endif %}
+                                        </small>
+                                    </div>
+                                    <div class="d-flex flex-column gap-1">
+                                        {% if assignment.access_key %}
+                                            <span class="badge bg-warning">
+                                                <i class="fas fa-lock me-1"></i>Access Key
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-success">
+                                                <i class="fas fa-unlock me-1"></i>Direct
+                                            </span>
+                                        {% endif %}
+                                        {% if resource.access_time_limit and resource.access_time_limit > 0 %}
+                                            <span class="badge bg-warning">
+                                                <i class="fas fa-clock me-1"></i>{{ resource.access_time_limit }} min
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="mt-2">
+                                    <a href="{{ url_for('view_resource', resource_id=resource.id) }}" class="btn btn-sm btn-primary">
+                                        {% if assignment.access_key %}
+                                            <i class="fas fa-key me-1"></i>Enter Access Key
+                                        {% else %}
+                                            <i class="fas fa-eye me-1"></i>View Resource
+                                        {% endif %}
+                                    </a>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-muted">No resources available for your grade level.</p>
+                {% endif %}
+            </div>
+        </div>
+        <!-- Available Quizzes Section -->
+        <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Available Quizzes & Assessments</h5>
+                        <a href="{{ url_for('student_quiz_list') }}" class="btn btn-info">View All Quizzes</a>
+                    </div>
+                    <div class="card-body">
+                        {% if available_quizzes %}
+                            <div class="list-group">
+                                {% for quiz_data in available_quizzes[:3] %}
+                                    <div class="list-group-item">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div class="flex-grow-1">
+                                                <h6 class="mb-1">{{ quiz_data.resource.title }}</h6>
+                                                <p class="mb-1">{{ quiz_data.resource.description or 'No description available' }}</p>
+                                                <small class="text-muted">
+                                                    Grade: {{ quiz_data.resource.grade }} | 
+                                                    Questions: {{ quiz_data.question_count }} |
+                                                    {% if quiz_data.metadata and quiz_data.metadata.time_limit %}
+                                                        Time Limit: {{ quiz_data.metadata.time_limit // 60 }} min
+                                                    {% else %}
+                                                        No time limit
+                                                    {% endif %}
+                                                </small>
+                                            </div>
+                                            <span class="badge bg-primary ms-2">
+                                                <i class="fas fa-clipboard-list me-1"></i>Quiz
+                                            </span>
+                                        </div>
+                                        <div class="mt-2">
+                                            {% if quiz_data.completed and not quiz_data.has_reassessment %}
+                                            <a href="{{ url_for('student_quiz', resource_id=quiz_data.resource.id) }}" class="btn btn-sm btn-info">
+                                                <i class="fas fa-eye me-1"></i>View Results
+                                            </a>
+                                            {% elif quiz_data.completed and quiz_data.has_reassessment %}
+                                            <a href="{{ url_for('student_quiz', resource_id=quiz_data.resource.id) }}" class="btn btn-sm btn-warning">
+                                                <i class="fas fa-redo me-1"></i>Retake Quiz
+                                            </a>
+                                            {% else %}
+                                            <a href="{{ url_for('student_quiz', resource_id=quiz_data.resource.id) }}" class="btn btn-sm btn-success">
+                                                <i class="fas fa-play me-1"></i>Start Quiz
+                                            </a>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <p class="text-muted">No quizzes available for your grade level.</p>
+                        {% endif %}
+                    </div>
+            </div>
+        </div>
+
+
+        <!-- Recent Quiz Results & AI Recommendations -->
+        <div class="card mt-4">
+            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-trophy me-2"></i>Recent Quiz Results & AI Recommendations</h5>
+                <a href="{{ url_for('student_ml_insights') }}" class="btn btn-light btn-sm">
+                    <i class="fas fa-brain me-1"></i>View Full Insights
+                </a>
+            </div>
+            <div class="card-body">
+                {% if recent_sessions %}
+                    {% for session in recent_sessions %}
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1">{{ session.resource_title }}</h6>
+                                    <p class="mb-1">
+                                        {% if session.marks_published %}
+                                            {% if session.detailed_marks %}
+                                                <span class="badge bg-success me-2">
+                                                    {{ session.detailed_marks.earned_marks }}/{{ session.detailed_marks.total_marks }} marks
+                                                </span>
+                                                <span class="badge {% if session.detailed_marks.percentage >= 70 %}bg-success{% elif session.detailed_marks.percentage >= 50 %}bg-warning{% else %}bg-danger{% endif %} me-2">
+                                                    {{ "%.1f"|format(session.detailed_marks.percentage) }}%
+                                                </span>
+                                            {% elif session.quiz_score is not none %}
+                                                <span class="badge {% if session.quiz_score >= 80 %}bg-success{% elif session.quiz_score >= 60 %}bg-warning{% else %}bg-danger{% endif %} me-2">
+                                                    {{ "%.1f"|format(session.quiz_score) }}%
+                                                </span>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="badge bg-secondary me-2">Marks not published</span>
+                                        {% endif %}
+                                        <small class="text-muted">{{ session.date }}</small>
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            {% if session.ai_recommendation %}
+                            <div class="alert alert-info mt-2 mb-0">
+                                <h6><i class="fas fa-robot me-2"></i>Recommendation</h6>
+                                <p class="mb-0">{{ session.ai_recommendation }}</p>
+                            </div>
+                            {% endif %}
+                            
+                            <div class="mt-2">
+                                {% if session.is_quiz and session.marks_published %}
+                                <a href="{{ url_for('quiz_review', session_id=session.session_id) }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-eye me-1"></i>Review Quiz
+                                </a>
+                                {% endif %}
+                                {% if session.is_quiz and session.marks_published %}
+                                    <a href="{{ url_for('student_my_marks', resource_id=session.resource_id) }}" class="btn btn-sm btn-success">
+                                        <i class="fas fa-chart-bar me-1"></i>View Detailed Marks
+                                    </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted">No quiz results available yet. Complete some quizzes to see your progress!</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

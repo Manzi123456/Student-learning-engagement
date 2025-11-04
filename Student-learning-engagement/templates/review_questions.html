@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h2>Review AI-Generated Questions</h2>
+    <div class="card mb-4">
+        <div class="card-header">
+            <h4>Questions Generated for: {{ resource_title }}</h4>
+        </div>
+        <div class="card-body">
+            {% if questions %}
+                <ol>
+                {% for q in questions %}
+                    <li>
+                        <strong>{{ q.question }}</strong><br>
+                        <ul>
+                        {% for opt in q.options %}
+                            <li>{{ opt }}</li>
+                        {% endfor %}
+                        </ul>
+                        <em>Correct Answer: {{ q.correct_answer }}</em>
+                    </li>
+                {% endfor %}
+                </ol>
+            {% else %}
+                <div class="alert alert-warning">No questions generated.</div>
+            {% endif %}
+            <form method="POST" action="{{ url_for('approve_questions') }}">
+                <input type="hidden" name="resource_id" value="{{ resource_id }}">
+                <input type="hidden" name="questions_json" value='{{ questions|tojson }}'>
+                <button type="submit" class="btn btn-success">Approve & Save</button>
+            </form>
+            <form method="POST" action="{{ url_for('regenerate_questions') }}" class="mt-2">
+                <input type="hidden" name="resource_id" value="{{ resource_id }}">
+                <button type="submit" class="btn btn-warning">Regenerate Questions</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %} 

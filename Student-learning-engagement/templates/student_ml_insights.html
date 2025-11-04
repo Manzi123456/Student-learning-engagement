@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <h2><i class="fas fa-brain me-2"></i>Learning Insights</h2>
+            
+        </div>
+    </div>
+
+    <!-- Overall Performance Summary -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card {% if overall_status == 'excellent' %}bg-success{% elif overall_status == 'good' %}bg-info{% elif overall_status == 'needs_improvement' %}bg-warning{% elif overall_status == 'struggling' %}bg-danger{% else %}bg-secondary{% endif %} text-white">
+                <div class="card-body text-center">
+                    <h3>{{ "%.1f"|format(avg_probability) }}%</h3>
+                    <p class="mb-0">Success Probability</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <h3>{{ "%.1f"|format(avg_score) }}%</h3>
+                    <p class="mb-0">Average Score</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <h3>{{ total_sessions }}</h3>
+                    <p class="mb-0">Completed Sessions</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card {% if model_info.status == 'trained' %}bg-success{% else %}bg-warning{% endif %} text-white">
+                <div class="card-body text-center">
+                    <h3><i class="fas fa-robot"></i></h3>
+                    <p class="mb-0">ML Model {{ 'Active' if model_info.status == 'trained' else 'Training' }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Recommendation -->
+    <div class="card mb-4">
+        <div class="card-header {% if overall_status == 'excellent' %}bg-success{% elif overall_status == 'good' %}bg-info{% elif overall_status == 'needs_improvement' %}bg-warning{% elif overall_status == 'struggling' %}bg-danger{% else %}bg-secondary{% endif %} text-white">
+            <h5 class="mb-0"><i class="fas fa-lightbulb me-2"></i>Recommendation for You</h5>
+        </div>
+        <div class="card-body">
+            <div class="alert {% if overall_status == 'excellent' %}alert-success{% elif overall_status == 'good' %}alert-info{% elif overall_status == 'needs_improvement' %}alert-warning{% elif overall_status == 'struggling' %}alert-danger{% else %}alert-secondary{% endif %}">
+                <h6><i class="fas fa-robot me-2"></i>Personalized Learning Strategy</h6>
+                <p class="mb-0">{{ overall_message }}</p>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Detailed ML Insights -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-analytics me-2"></i>Detailed Analysis</h5>
+        </div>
+        <div class="card-body">
+            {% if ml_insights %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Resource</th>
+                                <th>Quiz Score</th>
+                                <th>Success Probability</th>
+                                <th>Recommendation</th>
+                                <th>Confidence</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for insight in ml_insights %}
+                            <tr>
+                                <td>
+                                    <strong>{{ insight.resource_title }}</strong>
+                                    <br><small class="text-muted">{{ insight.duration_minutes }} minutes</small>
+                                </td>
+                                <td>
+                                    <span class="badge {% if insight.quiz_score >= 80 %}bg-success{% elif insight.quiz_score >= 60 %}bg-warning{% else %}bg-danger{% endif %}">
+                                        {{ "%.1f"|format(insight.quiz_score) }}%
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="progress" style="height: 25px;">
+                                        <div class="progress-bar {% if insight.success_probability >= 0.8 %}bg-success{% elif insight.success_probability >= 0.5 %}bg-warning{% else %}bg-danger{% endif %}" 
+                                             role="progressbar" style="width: {{ (insight.success_probability * 100)|round }}%">
+                                            {{ "%.0f"|format(insight.success_probability * 100) }}%
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge {% if insight.recommended_action == 'advance' %}bg-success{% elif insight.recommended_action == 'practice_related' %}bg-warning{% else %}bg-info{% endif %}">
+                                        {{ insight.action_display }}
+                                    </span>
+                                    <br><small class="text-muted">{{ insight.strategy }}</small>
+                                </td>
+                                <td>
+                                    <span class="badge {% if insight.confidence_level == 'High' %}bg-success{% elif insight.confidence_level == 'Medium' %}bg-warning{% else %}bg-secondary{% endif %}">
+                                        {{ insight.confidence_level }}
+                                    </span>
+                                </td>
+                                <td>{{ insight.date }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-chart-bar fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No insights available yet</h5>
+                    <p class="text-muted">Complete some quizzes to see your personalized learning insights!</p>
+                    <a href="{{ url_for('student_dashboard') }}" class="btn btn-primary">
+                        <i class="fas fa-play me-2"></i>Start Learning
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}

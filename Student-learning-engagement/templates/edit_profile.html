@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="text-center mb-0">Edit Profile</h3>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label for="username" class="form-label">Username</label>
+                            <input type="text" class="form-control" id="username" name="username" value="{{ current_user.username }}" required>
+                        </div>
+                        {% if current_user.role == 'student' %}
+                        <div class="mb-3">
+                            <label for="name" class="form-label">Full Name</label>
+                            <input type="text" class="form-control" id="name" name="name" value="{{ student.name if student else '' }}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="student_id" class="form-label">Student ID</label>
+                            <input type="text" class="form-control" id="student_id" name="student_id" value="{{ student.student_id if student else '' }}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="grade" class="form-label">Grade</label>
+                            <select class="form-select" id="grade" name="grade" required>
+                                <option value="">Select Grade</option>
+                                <option value="1" {% if student and student.grade == '1' %}selected{% endif %}>Grade 1</option>
+                                <option value="2" {% if student and student.grade == '2' %}selected{% endif %}>Grade 2</option>
+                                <option value="3" {% if student and student.grade == '3' %}selected{% endif %}>Grade 3</option>
+                                <option value="4" {% if student and student.grade == '4' %}selected{% endif %}>Grade 4</option>
+                                <option value="5" {% if student and student.grade == '5' %}selected{% endif %}>Grade 5</option>
+                                <option value="6" {% if student and student.grade == '6' %}selected{% endif %}>Grade 6</option>
+                            </select>
+                        </div>
+                        {% endif %}
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="email" name="email" value="{{ current_user.email }}" required>
+                        </div>
+                        <hr>
+                        <div class="mb-2">
+                            <h6 class="mb-0">Change Password (optional)</h6>
+                            <small class="text-muted">Leave blank to keep your current password.</small>
+                        </div>
+                        <div class="mb-3">
+                            <label for="current_password" class="form-label">Current Password</label>
+                            <input type="password" class="form-control" id="current_password" name="current_password" autocomplete="current-password">
+                        </div>
+                        <div class="mb-3">
+                            <label for="new_password" class="form-label">New Password</label>
+                            <input type="password" class="form-control" id="new_password" name="new_password" autocomplete="new-password">
+                        </div>
+                        <div class="mb-3">
+                            <label for="confirm_password" class="form-label">Confirm New Password</label>
+                            <input type="password" class="form-control" id="confirm_password" name="confirm_password" autocomplete="new-password">
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">Save</button>
+                            <a href="{{ url_for('index') }}" class="btn btn-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

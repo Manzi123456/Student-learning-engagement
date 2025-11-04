@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2><i class="fas fa-edit me-2"></i>Mark Essay Questions: {{ resource.title }}</h2>
+                <a href="{{ url_for('quiz_results', quiz_id=resource.id) }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Quiz Results
+                </a>
+            </div>
+        </div>
+    </div>
+
+    {% if essay_answers %}
+    <div class="row">
+        <div class="col-12">
+            <div class="alert alert-secondary">
+                <strong>About similarity:</strong> We compare essay answers to others on the same question. High percentages suggest copy risk; use your judgment.
+            </div>
+        </div>
+        {% for item in essay_answers %}
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-user me-2"></i>{{ item.student.name }}
+                        <small class="text-muted">({{ item.student.student_id }})</small>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <h6 class="text-primary">Question:</h6>
+                        <p class="mb-2">{{ item.question.question_text }}</p>
+                        <small class="text-muted">Max Marks: {{ item.question.marks }}</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <h6 class="text-success">Student Answer:</h6>
+                        <div class="border p-3 bg-light rounded">
+                            <p class="mb-0">{{ item.answer.answer }}</p>
+                        </div>
+                    </div>
+
+                    {% if item.answer.plagiarism_score is not none %}
+                    <div class="mb-3">
+                        <h6 class="text-danger">Similarity Check</h6>
+                        <div class="alert {% if item.answer.plagiarism_score >= 0.85 %}alert-danger{% elif item.answer.plagiarism_score >= 0.7 %}alert-warning{% else %}alert-secondary{% endif %}">
+                            <strong>Similarity:</strong> {{ (item.answer.plagiarism_score * 100) | round(0) }}%
+                            {% if item.answer.plagiarism_summary %}<br>{{ item.answer.plagiarism_summary }}{% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if item.answer.marks_awarded is not none %}
+                    <div class="alert alert-info">
+                        <strong>Already Graded:</strong> {{ item.answer.marks_awarded }}/{{ item.question.marks }} marks
+                        {% if item.answer.teacher_feedback %}
+                        <br><strong>Feedback:</strong> {{ item.answer.teacher_feedback }}
+                        {% endif %}
+                        <br><small class="text-muted">Graded on: {{ item.answer.graded_at.strftime('%B %d, %Y at %I:%M %p') }}</small>
+                    </div>
+                    {% endif %}
+                    
+                    <form method="POST" action="{{ url_for('grade_essay') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="answer_id" value="{{ item.answer.id }}">
+                        
+                        <div class="mb-3">
+                            <label for="marks_{{ item.answer.id }}" class="form-label">Marks Awarded</label>
+                            <input type="number" 
+                                   class="form-control" 
+                                   id="marks_{{ item.answer.id }}" 
+                                   name="marks_awarded" 
+                                   min="0" 
+                                   max="{{ item.question.marks }}" 
+                                   step="0.5"
+                                   value="{{ item.answer.marks_awarded or '' }}"
+                                   required>
+                            <div class="form-text">Maximum: {{ item.question.marks }} marks</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="feedback_{{ item.answer.id }}" class="form-label">Teacher Feedback (Optional)</label>
+                            <textarea class="form-control" 
+                                      id="feedback_{{ item.answer.id }}" 
+                                      name="feedback" 
+                                      rows="3" 
+                                      placeholder="Provide feedback to help the student improve...">{{ item.answer.teacher_feedback or '' }}</textarea>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-check me-1"></i>Grade Essay
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    <!-- Publish Marks Button -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Ready to Publish Marks?</h5>
+                    <p class="card-text">Once you've graded all essay questions, you can publish the marks so students can see their results.</p>
+                    <form method="POST" action="{{ url_for('publish_marks', resource_id=resource.id) }}" style="display: inline;">
+                        <button type="submit" class="btn btn-success btn-lg" onclick="return confirm('Are you sure you want to publish marks? Students will be able to see their results.')">
+                            <i class="fas fa-bullhorn me-2"></i>Publish Marks to Students
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    {% else %}
+    <div class="card">
+        <div class="card-body text-center py-5">
+            <i class="fas fa-clipboard-list fa-3x text-muted mb-3"></i>
+            <h4 class="text-muted">No Essay Questions</h4>
+            <p class="text-muted">This quiz doesn't contain any essay questions that need manual grading.</p>
+            <a href="{{ url_for('quiz_results', quiz_id=resource.id) }}" class="btn btn-primary">
+                <i class="fas fa-arrow-left me-1"></i> Back to Quiz Results
+            </a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    border: 1px solid rgba(0, 0, 0, 0.125);
+}
+
+.card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+}
+
+.bg-light {
+    background-color: #f8f9fa !important;
+}
+
+.alert-info {
+    background-color: #d1ecf1;
+    border-color: #bee5eb;
+    color: #0c5460;
+}
+</style>
+{% endblock %}

@@ -1,0 +1,530 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Resource Content Column -->
+        <div class="col-lg-8">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>{{ resource.title }}</h2>
+                <div class="d-flex gap-2">
+                    <a href="{{ url_for('student_dashboard') }}" class="btn btn-secondary">Back to Resources</a>
+                </div>
+            </div>
+            
+            {% if resource.description %}
+            <div class="alert alert-info">
+                <strong>Description:</strong> {{ resource.description }}
+            </div>
+            {% endif %}
+            
+            <!-- Debug information (remove in production) -->
+            {% if current_user.role == 'teacher' %}
+            <div class="alert alert-secondary">
+                <small>
+                    <strong>Debug Info:</strong><br>
+                    Resource Type: {{ resource.resource_type }}<br>
+                    File Path: {{ resource.file_path or 'None' }}<br>
+                    URL: {{ resource.url or 'None' }}<br>
+                    Resource ID: {{ resource.id }}<br>
+                    Created By: {{ resource.created_by }}<br>
+                    Grade: {{ resource.grade }}
+                </small>
+            </div>
+            {% endif %}
+            
+            <!-- Quiz Status Info -->
+            <div class="alert alert-info" id="quizStatusInfo">
+                <i class="fas fa-info-circle me-2"></i>
+                <strong>After Study:</strong> When you finish studying, you'll be directed to take a quiz to test your understanding of this material.
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">{{ resource.resource_type.title() }} Content</h5>
+                </div>
+                <div class="card-body">
+                    {% if resource.resource_type == 'note' %}
+                        {% if resource.file_path %}
+                            <div class="ratio ratio-4x3">
+                                <iframe src="{{ url_for('serve_resource_inline_view', resource_id=resource.id) }}" 
+                                        title="{{ resource.title }}" allow="clipboard-read; clipboard-write" 
+                                        style="border: none;"
+                                        onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                                </iframe>
+                                <div style="display: none; padding: 2rem; text-align: center; background: #f8f9fa; border: 1px dashed #dee2e6; border-radius: 0.375rem;">
+                                    <i class="fas fa-exclamation-triangle text-warning mb-2" style="font-size: 2rem;"></i>
+                                    <h6>Unable to display content inline</h6>
+                                    <p class="text-muted mb-3">The resource file may not be accessible or supported for inline viewing.</p>
+                                    <div class="d-flex gap-2 justify-content-center">
+                                        <a href="{{ url_for('serve_resource_inline_view', resource_id=resource.id) }}" target="_blank" class="btn btn-primary btn-sm">
+                                            <i class="fas fa-external-link-alt me-1"></i>Open in New Tab
+                                        </a>
+                                        <button onclick="location.reload()" class="btn btn-outline-secondary btn-sm">
+                                            <i class="fas fa-refresh me-1"></i>Retry
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-2">
+                                <small class="text-muted">Viewing is tracked. Downloading is disabled.</small>
+                            </div>
+                        {% else %}
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>
+                                <strong>Resource Information:</strong> This resource doesn't have an attached file. 
+                                {% if resource.description %}
+                                    <br><br><strong>Description:</strong> {{ resource.description }}
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                    {% elif resource.resource_type == 'video' %}
+                        {% if resource.file_path %}
+                            <div>
+                                <video controls class="w-100" style="height: 600px; max-width: 100%;" preload="metadata" crossorigin="anonymous"
+                                       onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                                    <source src="{{ url_for('serve_resource_inline_view', resource_id=resource.id) }}" type="video/mp4">
+                                    <source src="{{ url_for('serve_resource_inline_view', resource_id=resource.id) }}" type="video/webm">
+                                    <source src="{{ url_for('serve_resource_inline_view', resource_id=resource.id) }}" type="video/ogg">
+                                    <p>Your browser does not support the video tag. 
+                                       <a href="{{ url_for('serve_resource_inline_view', resource_id=resource.id) }}" target="_blank" class="btn btn-sm btn-primary">
+                                           <i class="fas fa-download me-1"></i>Download Video
+                                       </a>
+                                    </p>
+                                </video>
+                                <div style="display: none; padding: 2rem; text-align: center; background: #f8f9fa; border: 1px dashed #dee2e6; border-radius: 0.375rem;">
+                                    <i class="fas fa-video text-warning mb-2" style="font-size: 2rem;"></i>
+                                    <h6>Unable to load video</h6>
+                                    <p class="text-muted mb-3">The video file may not be accessible or supported for playback.</p>
+                                    <div class="d-flex gap-2 justify-content-center">
+                                        <a href="{{ url_for('serve_resource_inline_view', resource_id=resource.id) }}" target="_blank" class="btn btn-primary btn-sm">
+                                            <i class="fas fa-external-link-alt me-1"></i>Open in New Tab
+                                        </a>
+                                        <button onclick="location.reload()" class="btn btn-outline-secondary btn-sm">
+                                            <i class="fas fa-refresh me-1"></i>Retry
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="mt-2">
+                                    <small class="text-muted">Video playback is tracked. Controls are enabled for better learning experience.</small>
+                                </div>
+                                <!-- Video controls info -->
+                                <div class="mt-2 p-2 bg-light rounded">
+                                    <small class="text-muted">
+                                        <strong>Video Controls:</strong><br>
+                                        • Use the video controls to play, pause, and seek<br>
+                                        • Your video activity is being tracked for learning analytics<br>
+                                        • Video progress and engagement are monitored
+                                    </small>
+                                </div>
+                            </div>
+                        {% elif resource.url %}
+                            <div class="ratio ratio-16x9">
+                                <iframe class="embed-responsive-item" src="{{ resource.url }}" allowfullscreen
+                                        onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"></iframe>
+                                <div style="display: none; padding: 2rem; text-align: center; background: #f8f9fa; border: 1px dashed #dee2e6; border-radius: 0.375rem;">
+                                    <i class="fas fa-external-link-alt text-warning mb-2" style="font-size: 2rem;"></i>
+                                    <h6>Unable to load external video</h6>
+                                    <p class="text-muted mb-3">The external video may not be accessible or the URL may be invalid.</p>
+                                    <div class="d-flex gap-2 justify-content-center">
+                                        <a href="{{ resource.url }}" target="_blank" class="btn btn-primary btn-sm">
+                                            <i class="fas fa-external-link-alt me-1"></i>Open Original Link
+                                        </a>
+                                        <button onclick="location.reload()" class="btn btn-outline-secondary btn-sm">
+                                            <i class="fas fa-refresh me-1"></i>Retry
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-2">
+                                <small class="text-muted">External video is embedded. Some tracking features may be limited.</small>
+                            </div>
+                        {% else %}
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>
+                                <strong>Video Resource:</strong> This video resource doesn't have an attached file or URL. 
+                                {% if resource.description %}
+                                    <br><br><strong>Description:</strong> {{ resource.description }}
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                    {% elif resource.resource_type == 'link' %}
+                        {% if resource.url %}
+                            <p class="mb-2"><strong>External Link:</strong></p>
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>
+                                This link will open in a new tab with tracking enabled. Your activity will be monitored for learning analytics.
+                            </div>
+                            <div class="d-flex gap-2">
+                                <a href="{{ url_for('open_tracked_link', resource_id=resource.id) }}" target="_blank" class="btn btn-primary">
+                                    <i class="fas fa-external-link-alt me-2"></i>Open Link (Tracked)
+                                </a>
+                                <button onclick="copyLinkToClipboard('{{ resource.url }}')" class="btn btn-outline-secondary">
+                                    <i class="fas fa-copy me-2"></i>Copy URL
+                                </button>
+                            </div>
+                            <div class="mt-3">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6 class="mb-0">Link Preview</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <p><strong>URL:</strong> <span id="linkUrl">{{ resource.url }}</span></p>
+                                        <p><strong>Type:</strong> External Resource</p>
+                                        <p><strong>Tracking:</strong> <span class="badge bg-success">Enabled</span></p>
+                                    </div>
+                                </div>
+                            </div>
+                        {% else %}
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>
+                                <strong>Link Resource:</strong> This link resource doesn't have a URL configured. 
+                                {% if resource.description %}
+                                    <br><br><strong>Description:</strong> {{ resource.description }}
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                    {% elif resource.resource_type == 'quiz' %}
+                        <!-- Always attempt to display quiz attachments inline, regardless of file type -->
+                        {% if resource.file_path %}
+                            <div class="ratio ratio-4x3">
+                                <iframe src="{{ url_for('serve_resource_inline_view', resource_id=resource.id) }}"
+                                        title="{{ resource.title }}" allow="clipboard-read; clipboard-write"
+                                        style="border: none;"
+                                        onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                                </iframe>
+                                <div style="display: none; padding: 2rem; text-align: center; background: #f8f9fa; border: 1px dashed #dee2e6; border-radius: 0.375rem;">
+                                    <i class="fas fa-exclamation-triangle text-warning mb-2" style="font-size: 2rem;"></i>
+                                    <h6>Unable to display quiz content inline</h6>
+                                    <p class="text-muted mb-3">Your browser may not support inline viewing of this file type.</p>
+                                    <div class="d-flex gap-2 justify-content-center">
+                                        <a href="{{ url_for('serve_resource_inline_view', resource_id=resource.id) }}" target="_blank" class="btn btn-primary btn-sm">
+                                            <i class="fas fa-external-link-alt me-1"></i>Open in New Tab
+                                        </a>
+                                        <button onclick="location.reload()" class="btn btn-outline-secondary btn-sm">
+                                            <i class="fas fa-refresh me-1"></i>Retry
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-2">
+                                <small class="text-muted">Quiz content is displayed inline whenever possible and fully tracked.</small>
+                            </div>
+                        {% else %}
+                            <!-- Quiz resource without file - show questions if available -->
+                            <div class="alert alert-info">
+                                <i class="fas fa-graduation-cap me-2"></i>
+                                <strong>Quiz Resource:</strong> This is a quiz resource.
+                                {% if resource.description %}
+                                    <br><br><strong>Description:</strong> {{ resource.description }}
+                                {% endif %}
+                                <div class="mt-2">
+                                    <p class="text-muted">This quiz doesn't have an attached file. You can take the quiz directly.</p>
+                                </div>
+                            </div>
+                        {% endif %}
+                    {% else %}
+                        <!-- Fallback for unknown resource types or resources without content -->
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>Resource Content:</strong> This resource type ({{ resource.resource_type }}) may not be fully supported for inline viewing.
+                            {% if resource.description %}
+                                <br><br><strong>Description:</strong> {{ resource.description }}
+                            {% endif %}
+                            {% if resource.file_path %}
+                                <br><br><strong>File:</strong> {{ resource.file_path.split('/')[-1] if resource.file_path else 'No file' }}
+                                <div class="mt-2">
+                                    <a href="{{ url_for('serve_resource_inline_view', resource_id=resource.id) }}" target="_blank" class="btn btn-primary btn-sm">
+                                        <i class="fas fa-external-link-alt me-1"></i>Open File
+                                    </a>
+                                </div>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                </div>
+                
+            </div>
+        </div>
+        
+    <!-- Notes Column -->
+    <div class="col-lg-4">
+        <div class="card sticky-top shadow-sm border-0" style="top: 20px; border-radius: 12px; overflow: hidden;">
+            <!-- Card Header -->
+            <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center p-3">
+                <h5 class="mb-0 fw-bold text-dark">
+                    <i class="fas fa-sticky-note me-2 text-primary"></i>Study Notes
+                </h5>
+                <div class="d-flex gap-2">
+                    <button id="saveNotesBtn" type="button" class="btn btn-sm btn-outline-primary" style="border-radius: 20px;">
+                        <i class="fas fa-save me-1"></i>Save
+                    </button>
+                    <button id="clearNotesBtn" type="button" class="btn btn-sm btn-outline-danger" style="border-radius: 20px;">
+                        <i class="fas fa-trash me-1"></i>Clear
+                    </button>
+                </div>
+            </div>
+
+            <!-- Card Body -->
+            <div class="card-body p-0">
+                <!-- Status Message -->
+                <div id="statusMessage" class="alert alert-light border-0 border-bottom rounded-0 py-2 mb-0" style="display: none;">
+                    <i id="statusIcon" class="fas fa-info-circle me-2"></i>
+                    <span id="statusText" class="small"></span>
+                </div>
+
+                <!-- Notes Textarea -->
+                <div class="p-3">
+                    <textarea id="notesTextarea" class="form-control border-0 shadow-none" rows="15" 
+                            placeholder="Start writing your notes here..."
+                            style="resize: none; font-size: 0.95rem; line-height: 1.6; min-height: 300px; background: transparent;"></textarea>
+                </div>
+
+                <!-- Stats and Controls -->
+                <div class="bg-light p-3 border-top">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex gap-3">
+                            <div class="d-flex align-items-center">
+                                <span class="badge bg-white text-dark border me-1">
+                                    <i class="fas fa-font text-primary me-1"></i>
+                                    <span id="wordCount">0</span> words
+                                </span>
+                            </div>
+                            <div class="d-flex align-items-center">
+                                <span class="badge bg-white text-dark border">
+                                    <i class="fas fa-keyboard text-primary me-1"></i>
+                                    <span id="charCount">0</span> chars
+                                </span>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <small id="notesTimestamp" class="text-muted me-2 small">Not saved yet</small>
+                            <div class="form-check form-switch mb-0">
+                                <input class="form-check-input" type="checkbox" id="autoSaveToggle" checked>
+                                <label class="form-check-label small" for="autoSaveToggle" title="Toggle auto-save">
+                                    <i class="fas fa-sync-alt text-primary"></i>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Save Button (Floating Action Button) -->
+<button id="quickSaveBtn" class="btn btn-primary rounded-circle shadow-lg" 
+        style="position: fixed; bottom: 30px; right: 30px; width: 60px; height: 60px; display: none; z-index: 1000;"
+        title="Save Notes">
+    <i class="fas fa-save"></i>
+</button>
+
+<!-- Include Notes JavaScript -->
+<script src="{{ url_for('static', filename='js/notes.js') }}"></script>
+
+<!-- Global variables for notes -->
+<script>
+    // Set global variables from template
+    window.RESOURCE_ID = {{ resource.id|tojson|safe }};
+    window.SESSION_ID = {{ (session.id if session else '')|tojson|safe }};
+    window.TIME_LIMIT = {{ time_limit|default(0, true)|tojson|safe }};
+    window.MARKS_PUBLISHED = {{ marks_published|default('false')|lower|tojson|safe }};
+</script>
+
+<!-- Marked.js for markdown support -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<!-- DOMPurify for XSS protection -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/2.4.0/purify.min.js"></script>
+
+<!-- Enhanced CSS for Notes Section -->
+<style>
+    /* Version history styles */
+    #versionHistoryPanel {
+        display: none;
+        position: fixed;
+        right: 20px;
+        top: 80px;
+        width: 300px;
+        max-height: 70vh;
+        overflow-y: auto;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 0 15px rgba(0,0,0,0.1);
+        z-index: 1000;
+        padding: 15px;
+    }
+    
+    .version-item {
+        padding: 10px;
+        border-bottom: 1px solid #eee;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .version-item:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .version-item.active {
+        background-color: #e9ecef;
+        border-left: 3px solid #0d6efd;
+    }
+    
+    .version-time {
+        font-weight: bold;
+        font-size: 0.85em;
+        color: #495057;
+    }
+    
+    .version-preview {
+        font-size: 0.9em;
+        color: #6c757d;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .version-stats {
+        font-size: 0.75em;
+        color: #6c757d;
+        text-align: right;
+    }
+    
+    /* Markdown preview styles */
+    #notesPreview {
+        min-height: 300px;
+        padding: 10px;
+        border-radius: 4px;
+        background-color: #f8f9fa;
+        display: none;
+    }
+    
+    #notesPreview h1, #notesPreview h2, #notesPreview h3 {
+        margin-top: 1em;
+        margin-bottom: 0.5em;
+    }
+    
+    #notesPreview pre {
+        background-color: #f8f9fa;
+        padding: 10px;
+        border-radius: 4px;
+        overflow-x: auto;
+    }
+    
+    #notesPreview code {
+        font-family: 'Courier New', Courier, monospace;
+        background-color: #f1f1f1;
+        padding: 2px 4px;
+        border-radius: 3px;
+        font-size: 0.9em;
+    }
+    
+    #notesPreview blockquote {
+        border-left: 3px solid #ddd;
+        margin: 1em 0;
+        padding-left: 1em;
+        color: #6c757d;
+    }
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    @keyframes slideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+    
+    .card {
+        animation: fadeIn 0.5s ease-out;
+    }
+    
+    .btn {
+        transition: all 0.3s ease;
+    }
+    
+    .btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    .form-control:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    }
+    
+    .progress-bar {
+        transition: width 0.6s ease;
+    }
+    
+    .badge {
+        transition: all 0.3s ease;
+    }
+    
+    .alert {
+        animation: slideIn 0.4s ease-out;
+    }
+    
+    /* Custom scrollbar for textarea */
+    textarea::-webkit-scrollbar {
+        width: 6px;
+    }
+    
+    textarea::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 10px;
+    }
+    
+    textarea::-webkit-scrollbar-thumb {
+        background: #667eea;
+        border-radius: 10px;
+    }
+    
+    textarea::-webkit-scrollbar-thumb:hover {
+        background: #764ba2;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .card {
+            margin-bottom: 1rem;
+        }
+        
+        .btn-group {
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        .btn {
+            width: 100%;
+        }
+    }
+    
+    /* Dark mode support */
+    @media (prefers-color-scheme: dark) {
+        .card-body {
+            background: #2d3748 !important;
+        }
+        
+        .form-control {
+            background: #4a5568;
+            color: #e2e8f0;
+            border-color: #718096;
+        }
+        
+        .form-control:focus {
+            background: #4a5568;
+            color: #e2e8f0;
+            border-color: #667eea;
+        }
+    }
+</style>
+
+<script src="{{ url_for('static', filename='js/activity_tracker.js') }}"></script>
+{% endblock %} 

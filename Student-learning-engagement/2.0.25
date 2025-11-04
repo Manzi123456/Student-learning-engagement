@@ -1,0 +1,8 @@
+Collecting sqlalchemy
+  Downloading sqlalchemy-2.0.44-cp313-cp313-win_amd64.whl.metadata (9.8 kB)
+Requirement already satisfied: greenlet>=1 in c:\users\uwimpuhwe\appdata\local\programs\python\python313\lib\site-packages (from sqlalchemy) (3.2.2)
+Requirement already satisfied: typing-extensions>=4.6.0 in c:\users\uwimpuhwe\appdata\local\programs\python\python313\lib\site-packages (from sqlalchemy) (4.13.2)
+Downloading sqlalchemy-2.0.44-cp313-cp313-win_amd64.whl (2.1 MB)
+   ---------------------------------------- 2.1/2.1 MB 600.3 kB/s  0:00:03
+Installing collected packages: sqlalchemy
+Successfully installed sqlalchemy-2.0.44

@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+	<div class="row justify-content-center">
+		<div class="col-md-6">
+			<div class="card shadow">
+				<div class="card-header bg-danger text-white">
+					<h3 class="text-center mb-0">Wipe Accounts</h3>
+				</div>
+				<div class="card-body">
+					<p class="text-danger fw-bold">This will delete ALL students and ALL non-admin user accounts. This action cannot be undone.</p>
+					<form method="POST" action="{{ url_for('admin_wipe_accounts') }}">
+						{{ form.hidden_tag() }}
+						<div class="mb-3">
+							{{ form.confirm_token.label(class="form-label") }}
+							{{ form.confirm_token(class="form-control" + (" is-invalid" if form.confirm_token.errors else ""), placeholder="wipe") }}
+							{% if form.confirm_token.errors %}
+								<div class="invalid-feedback">
+									{{ form.confirm_token.errors[0] }}
+								</div>
+							{% endif %}
+							<small class="form-text text-muted">Type <code>wipe</code> to confirm</small>
+						</div>
+						<div class="d-grid gap-2">
+							<button type="submit" class="btn btn-danger">Delete Accounts</button>
+							<a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">Cancel</a>
+						</div>
+					</form>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+{% endblock %}
+
+

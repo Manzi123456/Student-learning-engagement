@@ -1,0 +1,336 @@
+<!-- Complete Notes Section - Rebuilt from Scratch -->
+<div class="col-lg-4">
+    <div class="card sticky-top" style="top: 20px;">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="fas fa-sticky-note me-2"></i>My Notes</h5>
+            <div class="d-flex gap-1">
+                <button id="saveNotesBtn" type="button" class="btn btn-sm btn-primary">
+                    <i class="fas fa-save me-1"></i>Save
+                </button>
+                <button id="clearNotesBtn" type="button" class="btn btn-sm btn-outline-secondary">
+                    <i class="fas fa-trash me-1"></i>Clear
+                </button>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-info d-flex align-items-center mb-3">
+                <i class="fas fa-info-circle me-2"></i>
+                <small>
+                    Take notes while studying. Your notes will be saved automatically every 3 seconds. Your teacher can view and grade your notes.
+                </small>
+            </div>
+            <textarea id="notesTextarea" class="form-control" rows="15" 
+                      placeholder="Start typing your notes here...&#10;&#10;Tips:&#10;• Write key concepts and definitions&#10;• Note important examples or formulas&#10;• Jot down questions you have&#10;• Summarize main points"></textarea>
+            <div class="mt-2 d-flex justify-content-between align-items-center">
+                <small id="notesStatus" class="text-muted">
+                    <i class="fas fa-clock me-1"></i>Ready to save
+                </small>
+                <small id="notesTimestamp" class="text-muted"></small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ===== NOTES FUNCTIONALITY - REBUILT FROM SCRATCH =====
+
+// Global variables
+let notesChanged = false;
+let autoSaveTimer = null;
+let isSaving = false;
+
+// Get CSRF token
+function getCsrfToken() {
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    return meta ? meta.getAttribute('content') : '';
+}
+
+// Update status message
+function updateStatus(message, className = 'text-muted') {
+    const statusEl = document.getElementById('notesStatus');
+    if (statusEl) {
+        statusEl.innerHTML = message;
+        statusEl.className = className;
+    }
+}
+
+// Update timestamp
+function updateTimestamp(timestamp) {
+    const timestampEl = document.getElementById('notesTimestamp');
+    if (timestampEl && timestamp) {
+        const date = new Date(timestamp);
+        timestampEl.textContent = `Last saved: ${date.toLocaleString()}`;
+    }
+}
+
+// Load existing notes
+async function loadNotes() {
+    if (!window.RESOURCE_ID) {
+        updateStatus('<i class="fas fa-exclamation-triangle me-1"></i>Error: No Resource ID', 'text-danger');
+        return;
+    }
+    
+    try {
+        updateStatus('<i class="fas fa-spinner fa-spin me-1"></i>Loading notes...', 'text-info');
+        
+        const response = await fetch(`/api/get_notes/${window.RESOURCE_ID}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            const textarea = document.getElementById('notesTextarea');
+            if (textarea) {
+                textarea.value = data.notes || '';
+            }
+            
+            if (data.last_updated || data.updated_at) {
+                updateTimestamp(data.last_updated || data.updated_at);
+            }
+            
+            if (data.notes && data.notes.trim()) {
+                updateStatus('<i class="fas fa-check me-1"></i>Notes loaded', 'text-success');
+            } else {
+                updateStatus('<i class="fas fa-clock me-1"></i>Ready to save', 'text-muted');
+            }
+            
+            notesChanged = false;
+            updateButtonStates();
+        } else {
+            updateStatus(`<i class="fas fa-exclamation-triangle me-1"></i>Load failed: ${data.error}`, 'text-danger');
+        }
+    } catch (error) {
+        console.error('Error loading notes:', error);
+        updateStatus('<i class="fas fa-exclamation-triangle me-1"></i>Load failed - check connection', 'text-danger');
+    }
+}
+
+// Save notes
+async function saveNotes() {
+    if (!window.RESOURCE_ID) {
+        updateStatus('<i class="fas fa-exclamation-triangle me-1"></i>Error: No Resource ID', 'text-danger');
+        return;
+    }
+    
+    if (isSaving) {
+        console.log('Save already in progress, skipping...');
+        return;
+    }
+    
+    const textarea = document.getElementById('notesTextarea');
+    const saveBtn = document.getElementById('saveNotesBtn');
+    const notesContent = textarea ? textarea.value.trim() : '';
+    
+    try {
+        isSaving = true;
+        
+        if (saveBtn) {
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Saving...';
+        }
+        
+        updateStatus('<i class="fas fa-spinner fa-spin me-1"></i>Saving...', 'text-info');
+        
+        const response = await fetch(`/api/save_notes/${window.RESOURCE_ID}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify({ notes: notesContent })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            updateStatus('<i class="fas fa-check me-1"></i>Saved successfully', 'text-success');
+            updateTimestamp(data.timestamp || new Date().toISOString());
+            notesChanged = false;
+            
+            console.log(`Notes saved: ${data.word_count || 0} words, ${data.character_count || 0} characters`);
+        } else {
+            updateStatus(`<i class="fas fa-exclamation-triangle me-1"></i>Save failed: ${data.error}`, 'text-danger');
+            console.error('Save failed:', data);
+        }
+    } catch (error) {
+        console.error('Error saving notes:', error);
+        updateStatus(`<i class="fas fa-exclamation-triangle me-1"></i>Save failed: ${error.message}`, 'text-danger');
+    } finally {
+        isSaving = false;
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = '<i class="fas fa-save me-1"></i>Save';
+        }
+        updateButtonStates();
+    }
+}
+
+// Clear notes
+async function clearNotes() {
+    if (!confirm('Are you sure you want to clear all your notes? This action cannot be undone.')) {
+        return;
+    }
+    
+    if (!window.RESOURCE_ID) {
+        updateStatus('<i class="fas fa-exclamation-triangle me-1"></i>Error: No Resource ID', 'text-danger');
+        return;
+    }
+    
+    const textarea = document.getElementById('notesTextarea');
+    const clearBtn = document.getElementById('clearNotesBtn');
+    
+    try {
+        // Clear textarea immediately
+        if (textarea) {
+            textarea.value = '';
+        }
+        
+        if (clearBtn) {
+            clearBtn.disabled = true;
+            clearBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Clearing...';
+        }
+        
+        updateStatus('<i class="fas fa-spinner fa-spin me-1"></i>Clearing...', 'text-warning');
+        
+        // Save empty notes to server
+        const response = await fetch(`/api/save_notes/${window.RESOURCE_ID}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify({ notes: '' })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            updateStatus('<i class="fas fa-check me-1"></i>Notes cleared', 'text-success');
+            updateTimestamp(new Date().toISOString());
+            notesChanged = false;
+        } else {
+            updateStatus(`<i class="fas fa-exclamation-triangle me-1"></i>Clear failed: ${data.error}`, 'text-danger');
+        }
+    } catch (error) {
+        console.error('Error clearing notes:', error);
+        updateStatus(`<i class="fas fa-exclamation-triangle me-1"></i>Clear failed: ${error.message}`, 'text-danger');
+    } finally {
+        if (clearBtn) {
+            clearBtn.disabled = false;
+            clearBtn.innerHTML = '<i class="fas fa-trash me-1"></i>Clear';
+        }
+        updateButtonStates();
+    }
+}
+
+// Update button states
+function updateButtonStates() {
+    const textarea = document.getElementById('notesTextarea');
+    const saveBtn = document.getElementById('saveNotesBtn');
+    const clearBtn = document.getElementById('clearNotesBtn');
+    
+    if (textarea && saveBtn && clearBtn) {
+        const hasContent = textarea.value.trim().length > 0;
+        
+        // Save button - enabled when there's content
+        saveBtn.disabled = !hasContent || isSaving;
+        if (hasContent && !isSaving) {
+            saveBtn.className = 'btn btn-sm btn-primary';
+        } else {
+            saveBtn.className = 'btn btn-sm btn-outline-primary';
+        }
+        
+        // Clear button - enabled when there's content
+        clearBtn.disabled = !hasContent || isSaving;
+        if (hasContent && !isSaving) {
+            clearBtn.className = 'btn btn-sm btn-outline-danger';
+        } else {
+            clearBtn.className = 'btn btn-sm btn-outline-secondary';
+        }
+    }
+}
+
+// Schedule auto-save (3 seconds after typing stops)
+function scheduleAutoSave() {
+    if (autoSaveTimer) {
+        clearTimeout(autoSaveTimer);
+    }
+    
+    updateStatus('<i class="fas fa-sync-alt fa-spin me-1"></i>Typing… auto-save in 3s', 'text-info');
+    
+    autoSaveTimer = setTimeout(async () => {
+        const textarea = document.getElementById('notesTextarea');
+        if (textarea && textarea.value.trim() && !isSaving) {
+            console.log('Auto-saving notes...');
+            await saveNotes();
+        }
+    }, 3000);
+}
+
+// Setup event listeners
+function setupNotesEvents() {
+    const textarea = document.getElementById('notesTextarea');
+    const saveBtn = document.getElementById('saveNotesBtn');
+    const clearBtn = document.getElementById('clearNotesBtn');
+    
+    if (textarea) {
+        // Input event for auto-save
+        textarea.addEventListener('input', function() {
+            notesChanged = true;
+            updateButtonStates();
+            scheduleAutoSave();
+        });
+        
+        // Save on blur
+        textarea.addEventListener('blur', function() {
+            if (textarea.value.trim() && !isSaving) {
+                saveNotes();
+            }
+        });
+    }
+    
+    if (saveBtn) {
+        saveBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            saveNotes();
+        });
+    }
+    
+    if (clearBtn) {
+        clearBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            clearNotes();
+        });
+    }
+    
+    // Save before page unload
+    window.addEventListener('beforeunload', function() {
+        if (textarea && textarea.value.trim() && !isSaving) {
+            // Synchronous save for beforeunload
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', `/api/save_notes/${window.RESOURCE_ID}`, false);
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            const csrf = getCsrfToken();
+            if (csrf) xhr.setRequestHeader('X-CSRFToken', csrf);
+            try {
+                xhr.send(JSON.stringify({ notes: textarea.value.trim() }));
+            } catch (e) {
+                console.warn('Failed to save on unload:', e);
+            }
+        }
+    });
+}
+
+// Initialize notes functionality
+function initNotes() {
+    console.log('Initializing notes functionality...');
+    loadNotes();
+    setupNotesEvents();
+    updateButtonStates();
+}
+
+// Initialize when DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+    initNotes();
+});
+</script>
+
+

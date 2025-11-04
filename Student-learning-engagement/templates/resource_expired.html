@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card border-warning">
+                <div class="card-header bg-warning text-dark">
+                    <h3 class="mb-0">
+                        <i class="fas fa-clock me-2"></i>Resource Access Expired
+                    </h3>
+                </div>
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-hourglass-end fa-4x text-warning mb-4"></i>
+                    <h4 class="text-warning mb-3">Time Limit Reached</h4>
+                    <p class="lead mb-4">
+                        Your access time for "<strong>{{ resource.title }}</strong>" has expired.
+                    </p>
+                    <p class="text-muted mb-4">
+                        This resource had a time limit of <strong>{{ resource.access_time_limit }} minutes</strong> 
+                        set by your teacher. The page has automatically expired to ensure fair access for all students.
+                    </p>
+                    
+                    <!-- Check if quiz is available -->
+                    <div id="quizCheckSection" class="mb-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Checking for quiz...</span>
+                        </div>
+                        <p class="text-muted mt-2">Checking if a quiz is available...</p>
+                    </div>
+                    
+                    <div id="quizAvailableSection" class="mb-4" style="display: none;">
+                        <div class="alert alert-success">
+                            <i class="fas fa-graduation-cap me-2"></i>
+                            <strong>Great news!</strong> A quiz is available for this resource.
+                        </div>
+                        <p class="text-muted mb-3">
+                            You can now test your understanding of the material you studied.
+                        </p>
+                        <a href="{{ url_for('student_quiz', resource_id=resource.id) }}" class="btn btn-success btn-lg">
+                            <i class="fas fa-question-circle me-2"></i>Take Quiz Now
+                        </a>
+                    </div>
+                    
+                    <div id="noQuizSection" class="mb-4" style="display: none;">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            No quiz is currently available for this resource.
+                        </div>
+                        <p class="text-muted mb-3">
+                            Your teacher may create a quiz later. Check back in your dashboard for updates.
+                        </p>
+                    </div>
+                    
+                    <div class="d-flex justify-content-center gap-3">
+                        <a href="{{ url_for('student_dashboard') }}" class="btn btn-primary">
+                            <i class="fas fa-home me-2"></i>Back to Dashboard
+                        </a>
+                        <a href="{{ url_for('student_resources') }}" class="btn btn-outline-primary">
+                            <i class="fas fa-book me-2"></i>View All Resources
+                        </a>
+                    </div>
+                </div>
+                <div class="card-footer bg-light">
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle me-1"></i>
+                        If you need more time to study this resource, please contact your teacher.
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Check if quiz is available for this resource
+    fetch(`/api/check_quiz_exists/{{ resource.id }}`)
+        .then(response => response.json())
+        .then(data => {
+            const quizCheckSection = document.getElementById('quizCheckSection');
+            const quizAvailableSection = document.getElementById('quizAvailableSection');
+            const noQuizSection = document.getElementById('noQuizSection');
+            
+            // Hide the loading spinner
+            quizCheckSection.style.display = 'none';
+            
+            if (data.has_quiz) {
+                // Show quiz available section
+                quizAvailableSection.style.display = 'block';
+            } else {
+                // Show no quiz section
+                noQuizSection.style.display = 'block';
+            }
+        })
+        .catch(error => {
+            console.error('Error checking quiz availability:', error);
+            // Hide loading and show no quiz section as fallback
+            document.getElementById('quizCheckSection').style.display = 'none';
+            document.getElementById('noQuizSection').style.display = 'block';
+        });
+});
+</script>
+{% endblock %}

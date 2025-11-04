@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2><i class="fas fa-check-circle text-success me-2"></i>Quiz Completed: {{ resource.title }}</h2>
+                <a href="{{ url_for('student_dashboard') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Completion Alert: show only after marks are published -->
+    {% if marks_published %}
+    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+        <i class="fas fa-info-circle me-2"></i>
+        <strong>Quiz Already Completed!</strong> You have already completed this quiz. Contact your teacher if you need to retake it.
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endif %}
+
+    <!-- Quiz Information -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Quiz Information</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Title:</strong> {{ resource.title }}</p>
+                    <p><strong>Description:</strong> {{ resource.description or 'No description' }}</p>
+                    <p><strong>Grade Level:</strong> Grade {{ resource.grade }}</p>
+                    <p><strong>Completed:</strong> {{ completed_session.end_time.strftime('%B %d, %Y at %I:%M %p') if completed_session.end_time else 'Unknown' }}</p>
+                    <p><strong>Duration:</strong> 
+                        {% if completed_session.duration %}
+                            {{ completed_session.duration // 60 }}m {{ completed_session.duration % 60 }}s
+                        {% else %}
+                            N/A
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Your Performance</h5>
+                </div>
+                <div class="card-body">
+                    {% if completed_session.quiz_score is not none %}
+                        <div class="text-center mb-3">
+                            <h3 class="text-primary">{{ "%.1f"|format(completed_session.quiz_score) }}%</h3>
+                            <small class="text-muted">System Score</small>
+                        </div>
+                    {% endif %}
+                    
+                    {% if marks_published and detailed_marks %}
+                        <div class="text-center mb-3">
+                            <h3 class="text-success">{{ detailed_marks.earned_marks }}/{{ detailed_marks.total_marks }}</h3>
+                            <small class="text-muted">Marks Earned</small>
+                        </div>
+                        <div class="text-center">
+                            <h4 class="text-success">{{ "%.1f"|format(detailed_marks.percentage) }}%</h4>
+                            <small class="text-muted">Percentage</small>
+                        </div>
+                    {% elif not marks_published %}
+                        <div class="alert alert-info">
+                            <i class="fas fa-clock me-2"></i>
+                            <strong>Marks Not Published Yet</strong><br>
+                            Your teacher hasn't published the marks for this quiz yet. Check back later.
+                        </div>
+                    {% endif %}
+                    
+                    {% if completed_session.ai_recommendation %}
+                        <div class="mt-3">
+                            <h6><i class="fas fa-robot me-2"></i>AI Recommendation</h6>
+                            <div class="alert alert-info">
+                                <p class="mb-0">{{ completed_session.ai_recommendation }}</p>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h5 class="card-title">What would you like to do?</h5>
+                    <div class="d-flex justify-content-center gap-3 flex-wrap">
+                        <a href="{{ url_for('student_dashboard') }}" class="btn btn-primary">
+                            <i class="fas fa-home me-2"></i>Back to Dashboard
+                        </a>
+                        
+                        {% if marks_published %}
+                            <a href="{{ url_for('student_my_marks', resource_id=resource.id) }}" class="btn btn-success">
+                                <i class="fas fa-chart-bar me-2"></i>View Detailed Marks
+                            </a>
+                            <a href="{{ url_for('quiz_review', session_id=completed_session.id) }}" class="btn btn-outline-primary">
+                                <i class="fas fa-eye me-2"></i>Review Quiz
+                            </a>
+                            <a href="{{ url_for('view_resource', resource_id=resource.id) }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-book-open me-2"></i>Review Resource
+                            </a>
+                        {% else %}
+                            <button class="btn btn-outline-secondary" disabled title="Review will be available after your teacher publishes marks.">
+                                <i class="fas fa-eye me-2"></i>Review Quiz
+                            </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quiz Summary -->
+    <div class="card">
+        <div class="card-header">
+            <h5>Quiz Summary</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Quiz Details</h6>
+                    <ul class="list-unstyled">
+                        <li><strong>Total Questions:</strong> {{ questions|length }}</li>
+                        <li><strong>MCQ Questions:</strong> {{ questions|selectattr('question_type', 'equalto', 'mcq')|list|length }}</li>
+                        <li><strong>Essay Questions:</strong> {{ questions|selectattr('question_type', 'equalto', 'essay')|list|length }}</li>
+                        {% if marks_published and detailed_marks %}
+                            <li><strong>Total Marks:</strong> {{ detailed_marks.total_marks }}</li>
+                            <li><strong>Marks Earned:</strong> {{ detailed_marks.earned_marks }}</li>
+                        {% endif %}
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <h6>Performance</h6>
+                    <ul class="list-unstyled">
+                        {% if completed_session.quiz_score is not none %}
+                            <li><strong>System Score:</strong> {{ "%.1f"|format(completed_session.quiz_score) }}%</li>
+                        {% endif %}
+                        {% if marks_published and detailed_marks %}
+                            <li><strong>Detailed Score:</strong> {{ "%.1f"|format(detailed_marks.percentage) }}%</li>
+                        {% endif %}
+                        <li><strong>Status:</strong> 
+                            <span class="badge bg-success">Completed</span>
+                        </li>
+                        {% if marks_published %}
+                            <li><strong>Marks Status:</strong> 
+                                <span class="badge bg-success">Published</span>
+                            </li>
+                        {% else %}
+                            <li><strong>Marks Status:</strong> 
+                                <span class="badge bg-warning">Not Published</span>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.alert {
+    border-radius: 0.5rem;
+}
+
+.card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    border: 1px solid rgba(0, 0, 0, 0.125);
+}
+
+.card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+}
+
+.badge {
+    font-size: 0.8em;
+}
+
+.gap-3 {
+    gap: 1rem !important;
+}
+</style>
+{% endblock %}

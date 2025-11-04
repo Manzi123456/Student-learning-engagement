@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-warning text-dark">
+                    <h4 class="mb-0">
+                        <i class="fas fa-redo me-2"></i>Grant Quiz Reassessment
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <h6><i class="fas fa-info-circle me-2"></i>Reassessment Details</h6>
+                        <p class="mb-0">You are about to grant reassessment permission for:</p>
+                    </div>
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h6>Student Information</h6>
+                            <ul class="list-unstyled">
+                                <li><strong>Name:</strong> {{ student.name }}</li>
+                                <li><strong>Student ID:</strong> {{ student.student_id }}</li>
+                                <li><strong>Grade:</strong> {{ student.grade }}</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Quiz Information</h6>
+                            <ul class="list-unstyled">
+                                <li><strong>Resource:</strong> {{ resource.title }}</li>
+                                <li><strong>Type:</strong> {{ resource.resource_type|title }}</li>
+                                <li><strong>Grade Level:</strong> {{ resource.grade }}</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-warning">
+                        <h6><i class="fas fa-exclamation-triangle me-2"></i>Important Notes</h6>
+                        <ul class="mb-0">
+                            <li>The student will be able to retake this quiz <strong>once</strong></li>
+                            <li>Quiz options will be <strong>shuffled</strong> to prevent cheating</li>
+                            <li>Previous quiz score will be replaced with the new attempt</li>
+                            <li>This permission expires after one use</li>
+                        </ul>
+                    </div>
+                    
+                    <form method="POST" action="{{ url_for('grant_reassessment', student_id=student_id, resource_id=resource_id) }}">
+                        <div class="mb-3">
+                            <label for="reason" class="form-label">Reason for Reassessment</label>
+                            <textarea class="form-control" id="reason" name="reason" rows="3" placeholder="Enter reason for granting reassessment (optional)">Low quiz score - teacher granted reassessment</textarea>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('teacher_student_progress') }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-1"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-warning">
+                                <i class="fas fa-check me-1"></i>Grant Reassessment Permission
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

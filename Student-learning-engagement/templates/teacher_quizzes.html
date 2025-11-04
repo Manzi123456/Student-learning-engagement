@@ -1,0 +1,300 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2>My Quizzes & Assessments</h2>
+                <a href="{{ url_for('create_quiz') }}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Create New Quiz
+                </a>
+            </div>
+        </div>
+    </div>
+
+    {% if active_quiz_stats or resource_quiz_stats %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <h3 class="mb-3"><i class="fas fa-check-circle text-success me-2"></i>Active Quizzes</h3>
+        </div>
+    </div>
+    <div class="row">
+        {% for stat in active_quiz_stats %}
+        <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <h5 class="card-title mb-0">{{ stat.quiz.title }}</h5>
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-ellipsis-v"></i>
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="{{ url_for('edit_quiz', quiz_id=stat.quiz.id) }}">
+                                    <i class="fas fa-edit"></i> Edit Quiz
+                                </a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('quiz_results', quiz_id=stat.quiz.id) }}">
+                                    <i class="fas fa-chart-bar"></i> View Results
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <form method="POST" action="{{ url_for('delete_quiz', quiz_id=stat.quiz.id) }}" 
+                                          onsubmit="return confirm('Are you sure you want to delete this quiz? This action cannot be undone.')" 
+                                          style="display: inline;">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="dropdown-item text-danger">
+                                            <i class="fas fa-trash"></i> Delete Quiz
+                                        </button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <p class="card-text text-muted">{{ stat.quiz.description or 'No description' }}</p>
+                    
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <small class="text-muted">Grade:</small><br>
+                            <strong>Grade {{ stat.quiz.grade }}</strong>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted">Created:</small><br>
+                            <strong>{{ stat.quiz.created_at.strftime('%b %d, %Y') }}</strong>
+                        </div>
+                    </div>
+                    
+                    {% if stat.metadata %}
+                    <div class="row mb-3">
+                        {% if stat.metadata.time_limit %}
+                        <div class="col-6">
+                            <small class="text-muted">Time Limit:</small><br>
+                            <strong>{{ stat.metadata.time_limit // 60 }} min</strong>
+                        </div>
+                        {% endif %}
+                        <div class="col-6">
+                            <small class="text-muted">Passing Score:</small><br>
+                            <strong>{{ stat.metadata.passing_score }}%</strong>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="row">
+                        <div class="col-6">
+                            <small class="text-muted">Students:</small><br>
+                            <strong>{{ stat.student_count }}</strong>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted">Avg Score:</small><br>
+                            <strong>{{ "%.1f"|format(stat.avg_score) }}%</strong>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('quiz_results', quiz_id=stat.quiz.id) }}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-chart-bar"></i> Results
+                        </a>
+                        <a href="{{ url_for('edit_quiz', quiz_id=stat.quiz.id) }}" class="btn btn-sm btn-outline-secondary">
+                            <i class="fas fa-edit"></i> Edit
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        
+        <!-- Resources with Attached Quizzes -->
+        {% for stat in resource_quiz_stats %}
+        <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card h-100 border-info">
+                <div class="card-header bg-info text-white">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-link me-2"></i>{{ stat.quiz.title }}
+                        </h5>
+                        <span class="badge bg-light text-info">RESOURCE QUIZ</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <p class="card-text text-muted">{{ stat.quiz.description or 'No description' }}</p>
+                    
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <small class="text-muted">Resource Type:</small><br>
+                            <strong>{{ stat.quiz.resource_type.title() }}</strong>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted">Grade:</small><br>
+                            <strong>Grade {{ stat.quiz.grade }}</strong>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <small class="text-muted">Questions:</small><br>
+                            <strong>{{ stat.question_count }}</strong>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted">Created:</small><br>
+                            <strong>{{ stat.quiz.created_at.strftime('%b %d, %Y') }}</strong>
+                        </div>
+                    </div>
+                    
+                    {% if stat.metadata %}
+                    <div class="row mb-3">
+                        {% if stat.metadata.time_limit %}
+                        <div class="col-6">
+                            <small class="text-muted">Time Limit:</small><br>
+                            <strong>{{ stat.metadata.time_limit // 60 }} min</strong>
+                        </div>
+                        {% endif %}
+                        <div class="col-6">
+                            <small class="text-muted">Passing Score:</small><br>
+                            <strong>{{ stat.metadata.passing_score }}%</strong>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="row">
+                        <div class="col-6">
+                            <small class="text-muted">Students:</small><br>
+                            <strong>{{ stat.student_count }}</strong>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted">Avg Score:</small><br>
+                            <strong>{{ "%.1f"|format(stat.avg_score) }}%</strong>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('quiz_results', quiz_id=stat.quiz.id) }}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-chart-bar"></i> Results
+                        </a>
+                        <a href="{{ url_for('create_quiz', resource_id=stat.quiz.id) }}" class="btn btn-sm btn-outline-info">
+                            <i class="fas fa-edit"></i> Edit Quiz
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-clipboard-list fa-3x text-muted mb-3"></i>
+                    <h4 class="text-muted">No Quizzes Created Yet</h4>
+                    <p class="text-muted">Start creating quizzes and assessments for your students.</p>
+                    <a href="{{ url_for('create_quiz') }}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Create Your First Quiz
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    {% if deleted_quiz_stats %}
+    <div class="row mb-4 mt-5">
+        <div class="col-12">
+            <h3 class="mb-3"><i class="fas fa-trash text-danger me-2"></i>Deleted Quizzes</h3>
+            <p class="text-muted">These quizzes have been deleted but student records are preserved.</p>
+        </div>
+    </div>
+    <div class="row">
+        {% for stat in deleted_quiz_stats %}
+        <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card h-100 border-danger">
+                <div class="card-header bg-danger text-white">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <h5 class="card-title mb-0">{{ stat.quiz.title }}</h5>
+                        <span class="badge bg-light text-danger">DELETED</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <p class="card-text text-muted">{{ stat.quiz.description or 'No description' }}</p>
+                    
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <small class="text-muted">Grade:</small><br>
+                            <strong>Grade {{ stat.quiz.grade }}</strong>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted">Deleted:</small><br>
+                            <strong>{{ stat.quiz.deleted_at.strftime('%b %d, %Y') }}</strong>
+                        </div>
+                    </div>
+                    
+                    {% if stat.metadata %}
+                    <div class="row mb-3">
+                        {% if stat.metadata.time_limit %}
+                        <div class="col-6">
+                            <small class="text-muted">Time Limit:</small><br>
+                            <strong>{{ stat.metadata.time_limit // 60 }} min</strong>
+                        </div>
+                        {% endif %}
+                        <div class="col-6">
+                            <small class="text-muted">Passing Score:</small><br>
+                            <strong>{{ stat.metadata.passing_score }}%</strong>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="row">
+                        <div class="col-6">
+                            <small class="text-muted">Students:</small><br>
+                            <strong>{{ stat.student_count }}</strong>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted">Avg Score:</small><br>
+                            <strong>{{ "%.1f"|format(stat.avg_score) }}%</strong>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('quiz_results', quiz_id=stat.quiz.id) }}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-chart-bar"></i> Results
+                        </a>
+                        <form method="POST" action="{{ url_for('restore_quiz', quiz_id=stat.quiz.id) }}" style="display: inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-sm btn-outline-success" 
+                                    onclick="return confirm('Are you sure you want to restore this quiz?')">
+                                <i class="fas fa-undo"></i> Restore
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.card {
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.dropdown-toggle::after {
+    display: none;
+}
+
+.card-footer {
+    background-color: #f8f9fa;
+    border-top: 1px solid #dee2e6;
+}
+</style>
+{% endblock %}

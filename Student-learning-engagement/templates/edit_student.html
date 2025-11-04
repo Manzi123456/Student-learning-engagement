@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-header bg-warning text-dark">
+                    <h3 class="text-center mb-0">Edit Student</h3>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="mb-3">
+                            <label for="name" class="form-label">Full Name</label>
+                            <input type="text" class="form-control" id="name" name="name" value="{{ student.name }}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="email" name="email" value="{{ user_email or '' }}" placeholder="student@example.com">
+                        </div>
+                        <div class="mb-3">
+                            <label for="student_id" class="form-label">Student ID</label>
+                            <input type="text" class="form-control" id="student_id" name="student_id" value="{{ student.student_id }}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="grade" class="form-label">Grade</label>
+                            <select class="form-select" id="grade" name="grade" required>
+                                <option value="">Select Grade</option>
+                                <option value="1" {% if student.grade == '1' %}selected{% endif %}>Grade 1</option>
+                                <option value="2" {% if student.grade == '2' %}selected{% endif %}>Grade 2</option>
+                                <option value="3" {% if student.grade == '3' %}selected{% endif %}>Grade 3</option>
+                                <option value="4" {% if student.grade == '4' %}selected{% endif %}>Grade 4</option>
+                                <option value="5" {% if student.grade == '5' %}selected{% endif %}>Grade 5</option>
+                                <option value="6" {% if student.grade == '6' %}selected{% endif %}>Grade 6</option>
+                            </select>
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-warning">Update Student</button>
+                            <a href="{{ url_for('teacher_dashboard') }}" class="btn btn-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

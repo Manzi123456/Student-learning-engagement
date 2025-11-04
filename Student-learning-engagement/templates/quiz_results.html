@@ -1,0 +1,638 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2>Quiz Results: {{ quiz.title }}</h2>
+                <div>
+                    {% if quiz.resource_type == 'quiz' %}
+                        <a href="{{ url_for('mark_quiz', resource_id=quiz.id) }}" class="btn btn-primary me-2">
+                            <i class="fas fa-edit"></i> Mark All Answers
+                        </a>
+                        {% set has_essays = questions | selectattr('question_type', 'equalto', 'essay') | list | length > 0 %}
+                        {% if has_essays %}
+                            <a href="{{ url_for('mark_essays', resource_id=quiz.id) }}" class="btn btn-warning me-2">
+                                <i class="fas fa-edit"></i> Mark Essays Only
+                            </a>
+                        {% endif %}
+                        <a href="{{ url_for('view_student_notes', resource_id=quiz.id) }}" class="btn btn-info me-2">
+                            <i class="fas fa-sticky-note"></i> View Student Notes
+                        </a>
+                    {% endif %}
+                    <a href="{{ url_for('teacher_quizzes') }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Quizzes
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quiz Overview -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Quiz Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Note:</strong> This page shows detailed results for the quiz. 
+                        Marks are automatically calculated for MCQs and can be manually graded for essay questions.
+                    </div>
+                    <div class="mb-3">
+                        <h6 class="text-primary">Quiz Details</h6>
+                        <p class="mb-1"><strong>Title:</strong> {{ quiz.title }}</p>
+                        <p class="mb-1"><strong>Description:</strong> {{ quiz.description or 'No description' }}</p>
+                        <p class="mb-1"><strong>Grade Level:</strong> Grade {{ quiz.grade }}</p>
+                        <p class="mb-1"><strong>Total Marks:</strong> {{ quiz_stats.total_marks|default(0) }}</p>
+                        <p class="mb-0"><strong>Created:</strong> {{ quiz.created_at.strftime('%B %d, %Y at %I:%M %p') }}</p>
+                    </div>
+                    
+                    {% if metadata and metadata.marks_published %}
+                    <div class="alert alert-success mt-3">
+                        <i class="fas fa-check-circle me-2"></i>
+                        <strong>Marks Published:</strong> Students can view their results.
+                        <div class="small">Published on: {{ metadata.marks_published_at.strftime('%B %d, %Y at %I:%M %p') }}</div>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-warning mt-3">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Marks Not Published:</strong> Students cannot see their results yet.
+                        <div class="mt-2">
+                            <button class="btn btn-sm btn-success" onclick="publishMarks({{ quiz.id }})">
+                                <i class="fas fa-paper-plane me-1"></i> Publish Marks to Students
+                            </button>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Performance Summary</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <div class="card bg-light h-100">
+                                <div class="card-body text-center">
+                                    <h6 class="text-muted mb-1">Total Attempts</h6>
+                                    <h3 class="mb-0">{{ quiz_stats.total_attempts }}</h3>
+                                    <small class="text-muted">{{ quiz_stats.completed_attempts }} completed</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <div class="card bg-light h-100">
+                                <div class="card-body text-center">
+                                    <h6 class="text-muted mb-1">Average Score</h6>
+                                    <h3 class="mb-0">{{ "%.1f"|format(quiz_stats.average_score) }}%</h3>
+                                    <small class="text-muted">of {{ quiz_stats.total_marks|default(100) }} marks</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="card bg-light h-100">
+                                <div class="card-body text-center">
+                                    <h6 class="text-muted mb-1">Highest Score</h6>
+                                    <h3 class="text-success mb-0">{{ "%.1f"|format(quiz_stats.highest_score) }}%</h3>
+                                    <small class="text-muted">Top performer</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="card bg-light h-100">
+                                <div class="card-body text-center">
+                                    <h6 class="text-muted mb-1">Lowest Score</h6>
+                                    <h3 class="text-danger mb-0">{{ "%.1f"|format(quiz_stats.lowest_score) }}%</h3>
+                                    <small class="text-muted">Needs improvement</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Student Attempts -->
+    {% if attempts %}
+    <div class="card">
+        <div class="card-header">
+            <h5>Student Attempts</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Student Name</th>
+                            <th>Student ID</th>
+                            <th>Score</th>
+                            <th>Duration</th>
+                            <th>Completed</th>
+                            <th>Date</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for attempt, student in attempts %}
+                        <tr>
+                            <td>{{ student.name }}</td>
+                            <td>{{ student.student_id }}</td>
+                            <td>
+                                {% if attempt.quiz_score is not none %}
+                                    <div class="d-flex align-items-center">
+                                        <div class="progress flex-grow-1 me-2" style="height: 20px;">
+                                            <div class="progress-bar {% if attempt.quiz_score >= 70 %}bg-success{% elif attempt.quiz_score >= 50 %}bg-warning{% else %}bg-danger{% endif %}" 
+                                                 role="progressbar" 
+                                                 style="width: {{ attempt.quiz_score|int }}%" 
+                                                 aria-valuenow="{{ attempt.quiz_score|int }}" 
+                                                 aria-valuemin="0" 
+                                                 aria-valuemax="100">
+                                            </div>
+                                        </div>
+                                        <span class="fw-bold {% if attempt.quiz_score >= 70 %}text-success{% elif attempt.quiz_score >= 50 %}text-warning{% else %}text-danger{% endif %}">
+                                            {{ "%.1f"|format(attempt.quiz_score) }}%
+                                        </span>
+                                    </div>
+                                    <small class="text-muted">
+                                        {% if attempt.quiz_score is not none %}
+                                            {{ "%.1f"|format(attempt.quiz_score / 100 * total_marks) }}/{{ total_marks }}
+                                        {% endif %}
+                                    </small>
+                                {% else %}
+                                    <span class="badge bg-secondary">Incomplete</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if attempt.duration %}
+                                    {{ attempt.duration // 60 }}m {{ attempt.duration % 60 }}s
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if attempt.completed %}
+                                    <span class="badge bg-success">Yes</span>
+                                {% else %}
+                                    <span class="badge bg-warning">No</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ attempt.end_time.strftime('%b %d, %Y at %I:%M %p') if attempt.end_time else 'N/A' }}</td>
+                            <td>
+                                <a href="{{ url_for('view_student_marks', resource_id=quiz.id, student_id=student.id) }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-eye"></i> View Marks
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulk Grading Section -->
+    {% if attempts and questions %}
+    <div class="card mt-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5><i class="fas fa-edit me-2"></i>Bulk Grading</h5>
+            <div>
+                <button type="button" class="btn btn-success me-2" onclick="gradeAllEssayQuestions()">
+                    <i class="fas fa-check-double me-1"></i>Grade All Essays
+                </button>
+                {% if metadata and not metadata.marks_published %}
+                <form method="POST" action="{{ url_for('publish_marks', resource_id=quiz.id) }}" style="display: inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-primary" onclick="return confirm('Are you sure you want to publish marks? Students will be able to see their results.')">
+                        <i class="fas fa-bullhorn me-1"></i>Publish All Marks
+                    </button>
+                </form>
+                {% elif metadata and metadata.marks_published %}
+                <span class="badge bg-success fs-6">
+                    <i class="fas fa-check me-1"></i>Marks Published
+                </span>
+                {% else %}
+                <a href="{{ url_for('fix_quiz_metadata', resource_id=quiz.id) }}" class="btn btn-warning me-2">
+                    <i class="fas fa-tools me-1"></i>Fix Metadata
+                </a>
+                <form method="POST" action="{{ url_for('publish_marks', resource_id=quiz.id) }}" style="display: inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-primary" onclick="return confirm('Are you sure you want to publish marks? Students will be able to see their results.')">
+                        <i class="fas fa-bullhorn me-1"></i>Publish All Marks
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                <strong>Instructions:</strong> 
+                MCQ questions are automatically graded. Essay questions require manual grading. 
+                Use the forms below to grade essay answers, then publish marks when ready.
+            </div>
+            
+            <!-- Grading Summary -->
+            <div class="row mb-3">
+                <div class="col-md-3">
+                    <div class="text-center p-2 border rounded">
+                        <h6 class="text-primary mb-1">{{ questions|length }}</h6>
+                        <small class="text-muted">Total Questions</small>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center p-2 border rounded">
+                        <h6 class="text-success mb-1">{{ questions|selectattr('question_type', 'equalto', 'mcq')|list|length }}</h6>
+                        <small class="text-muted">MCQ Questions</small>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center p-2 border rounded">
+                        <h6 class="text-warning mb-1">{{ questions|selectattr('question_type', 'equalto', 'essay')|list|length }}</h6>
+                        <small class="text-muted">Essay Questions</small>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center p-2 border rounded">
+                        <h6 class="text-info mb-1">{{ attempts|length }}</h6>
+                        <small class="text-muted">Student Attempts</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Question Analysis -->
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5>Question Analysis & Grading</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                {% for question in questions %}
+                <div class="col-md-6 mb-3">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6>Question {{ loop.index }}</h6>
+                        </div>
+                        <div class="card-body">
+                            <p class="mb-2"><strong>{{ question.question_text }}</strong></p>
+                            
+                            {% if question.question_type == 'mcq' and question.options %}
+                            <div class="mb-2">
+                                <small class="text-muted">Options:</small>
+                                <ul class="list-unstyled mb-2">
+                                    {% for option in (question.options or []) %}
+                                    <li class="{% if loop.index0 == 0 %}text-success fw-bold{% endif %}">
+                                        {{ ['A', 'B', 'C', 'D'][loop.index0] }}. {{ option }}
+                                        {% if loop.index0 == 0 %}<span class="badge bg-success ms-2">Correct</span>{% endif %}
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            {% endif %}
+
+                            <!-- Student Answers Section -->
+                            <div class="mb-3">
+                                <h6 class="text-primary">Student Answers:</h6>
+                                <div class="border p-3 bg-light rounded" style="max-height: 200px; overflow-y: auto;">
+                                    {% set current_question_answers = question_answers.get(question.id, []) %}
+                                    {% set correct_answers = 0 %}
+                                    {% for student, answer in current_question_answers %}
+                                        {% if question.question_type == 'mcq' and answer.is_correct %}
+                                            {% set correct_answers = correct_answers + 1 %}
+                                        {% endif %}
+                                    {% endfor %}
+                                    
+                                    {% if current_question_answers %}
+                                        {% for student, answer in current_question_answers %}
+                                        <div class="mb-3 p-3 border rounded">
+                                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                                <div class="flex-grow-1">
+                                                    <strong>{{ student.name }}</strong>
+                                                    <small class="text-muted">({{ student.student_id }})</small>
+                                                    <div class="mt-1">
+                                                        {% if question.question_type == 'mcq' %}
+                                                            <span class="badge {% if answer.is_correct %}bg-success{% else %}bg-danger{% endif %}">
+                                                                {{ answer.answer }}
+                                                            </span>
+                                                        {% else %}
+                                                            <div class="text-wrap">{{ answer.answer }}</div>
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                                <div class="text-end">
+                                                    {% if question.question_type == 'mcq' %}
+                                                        {% if answer.is_correct %}
+                                                            <span class="badge bg-success">✓ Correct ({{ question.marks }}/{{ question.marks }})</span>
+                                                        {% else %}
+                                                            <span class="badge bg-danger">✗ Wrong (0/{{ question.marks }})</span>
+                                                        {% endif %}
+                                                    {% else %}
+                                                        {% if answer.marks_awarded is not none %}
+                                                            <span class="badge bg-info">{{ answer.marks_awarded }}/{{ question.marks }}</span>
+                                                        {% else %}
+                                                            <span class="badge bg-warning">Not graded</span>
+                                                        {% endif %}
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Grading Form for Essay Questions -->
+                                            {% if question.question_type == 'essay' %}
+                                            <form class="grade-form" data-answer-id="{{ answer.id }}" data-question-marks="{{ question.marks }}">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <div class="row">
+                                                    <div class="col-md-6">
+                                                        <label for="marks_{{ answer.id }}" class="form-label">Marks Awarded</label>
+                                                        <input type="number" 
+                                                               class="form-control form-control-sm" 
+                                                               id="marks_{{ answer.id }}" 
+                                                               name="marks_awarded" 
+                                                               min="0" 
+                                                               max="{{ question.marks }}" 
+                                                               step="0.5"
+                                                               value="{{ answer.marks_awarded or '' }}"
+                                                               required>
+                                                        <div class="form-text">Max: {{ question.marks }} marks</div>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <label for="feedback_{{ answer.id }}" class="form-label">Feedback (Optional)</label>
+                                                        <input type="text" 
+                                                               class="form-control form-control-sm" 
+                                                               id="feedback_{{ answer.id }}" 
+                                                               name="feedback" 
+                                                               placeholder="Provide feedback..."
+                                                               value="{{ answer.teacher_feedback or '' }}">
+                                                    </div>
+                                                </div>
+                                                <div class="mt-2">
+                                                    <button type="submit" class="btn btn-primary btn-sm">
+                                                        <i class="fas fa-save me-1"></i>Save Grade
+                                                    </button>
+                                                </div>
+                                            </form>
+                                            {% endif %}
+                                        </div>
+                                        {% endfor %}
+                                    {% else %}
+                                        <p class="text-muted mb-0">No student answers available for this question.</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <div class="progress mb-2" style="height: 20px;">
+                                {% set total_attempts = current_question_answers|length %}
+                                {% set accuracy = (correct_answers / total_attempts * 100) if total_attempts > 0 else 0 %}
+                                <div class="progress-bar {% if accuracy >= 70 %}bg-success{% elif accuracy >= 50 %}bg-warning{% else %}bg-danger{% endif %}" 
+                                     style="width: {{ accuracy }}%">
+                                    {{ "%.1f"|format(accuracy) }}%
+                                </div>
+                            </div>
+                            <small class="text-muted">Success Rate: {{ correct_answers }}/{{ total_attempts }}</small>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="card">
+        <div class="card-body text-center py-5">
+            <i class="fas fa-chart-bar fa-3x text-muted mb-3"></i>
+            <h4 class="text-muted">No Attempts Yet</h4>
+            <p class="text-muted">Students haven't taken this quiz yet.</p>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Student Details Modal -->
+<div class="modal fade" id="studentDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Student Quiz Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="studentDetailsContent">
+                <!-- Content will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function publishMarks(quizId) {
+    if (confirm('Are you sure you want to publish the marks for this quiz? Students will be able to see their results.')) {
+        fetch(`/teacher/publish_marks/${quizId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            }
+        })
+        .then(response => {
+            if (response.redirected) {
+                window.location.href = response.url;
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                showAlert('success', 'Marks published successfully!');
+                // Reload the page to show the updated status
+                setTimeout(() => window.location.reload(), 1500);
+            } else {
+                showAlert('danger', data.message || 'Failed to publish marks.');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('danger', 'An error occurred while publishing marks.');
+        });
+    }
+}
+
+function viewStudentDetails(studentId, attemptId) {
+    // This would typically make an AJAX call to get detailed student answers
+    // For now, we'll show a placeholder
+    document.getElementById('studentDetailsContent').innerHTML = `
+        <div class="text-center py-4">
+            <i class="fas fa-spinner fa-spin fa-2x text-muted mb-3"></i>
+            <p>Loading student details...</p>
+        </div>
+    `;
+    
+    // Show the modal
+    const modal = new bootstrap.Modal(document.getElementById('studentDetailsModal'));
+    modal.show();
+    
+    // In a real implementation, you would make an AJAX call here to get:
+    // - Individual question answers
+    // - Time spent on each question
+    // - Detailed performance analysis
+    // - AI recommendations
+}
+
+// Handle individual grading form submissions
+document.addEventListener('DOMContentLoaded', function() {
+    const gradeForms = document.querySelectorAll('.grade-form');
+    
+    gradeForms.forEach(form => {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const answerId = this.dataset.answerId;
+            const questionMarks = parseFloat(this.dataset.questionMarks);
+            const formData = new FormData(this);
+            const marksAwarded = parseFloat(formData.get('marks_awarded'));
+            const feedback = formData.get('feedback');
+            
+            // Validate marks
+            if (marksAwarded < 0 || marksAwarded > questionMarks) {
+                alert(`Marks must be between 0 and ${questionMarks}`);
+                return;
+            }
+            
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            
+            // Show loading state
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Saving...';
+            
+            // Get CSRF token from form
+            const csrfToken = this.querySelector('input[name="csrf_token"]').value;
+            
+            // Submit grade with CSRF token
+            fetch('/teacher/grade_essay', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': csrfToken
+                },
+                body: new URLSearchParams({
+                    'answer_id': answerId,
+                    'marks_awarded': marksAwarded,
+                    'feedback': feedback,
+                    'csrf_token': csrfToken
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Show success message
+                    showAlert('success', 'Grade saved successfully!');
+                    
+                    // Update the badge
+                    const badge = this.closest('.mb-3').querySelector('.badge');
+                    badge.textContent = `${marksAwarded}/${questionMarks}`;
+                    badge.className = `badge ${marksAwarded > 0 ? 'bg-success' : 'bg-danger'}`;
+                    
+                    // Update button text
+                    submitBtn.innerHTML = '<i class="fas fa-check me-1"></i>Grade Updated';
+                    
+                    // Reload page after a short delay to show updated data
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
+                } else {
+                    throw new Error(data.error || 'Failed to save grade');
+                }
+            })
+            .catch(error => {
+                console.error('Error saving grade:', error);
+                showAlert('danger', `Error: ${error.message}`);
+                
+                // Reset button
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            });
+        });
+    });
+});
+
+// Grade all essay questions at once
+function gradeAllEssayQuestions() {
+    const essayForms = document.querySelectorAll('.grade-form');
+    const ungradedForms = Array.from(essayForms).filter(form => {
+        const marksInput = form.querySelector('input[name="marks_awarded"]');
+        return !marksInput.value || marksInput.value === '';
+    });
+    
+    if (ungradedForms.length === 0) {
+        showAlert('info', 'All essay questions are already graded!');
+        return;
+    }
+    
+    if (!confirm(`You have ${ungradedForms.length} ungraded essay questions. Do you want to grade them all with 0 marks?`)) {
+        return;
+    }
+    
+    // Set all ungraded forms to 0 marks
+    ungradedForms.forEach(form => {
+        const marksInput = form.querySelector('input[name="marks_awarded"]');
+        marksInput.value = '0';
+        form.dispatchEvent(new Event('submit'));
+    });
+    
+    showAlert('info', `Grading ${ungradedForms.length} essay questions...`);
+}
+
+// Show alert messages
+function showAlert(type, message) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'danger' ? 'exclamation-triangle' : 'info-circle'} me-2"></i>
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    // Insert at the top of the page
+    const container = document.querySelector('.container');
+    container.insertBefore(alertDiv, container.firstChild);
+    
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
+</script>
+
+<style>
+.badge {
+    font-size: 0.8em;
+}
+
+.progress {
+    background-color: #e9ecef;
+}
+
+.card-header {
+    background-color: #f8f9fa;
+}
+
+.table th {
+    background-color: #f8f9fa;
+    border-top: none;
+}
+</style>
+{% endblock %}

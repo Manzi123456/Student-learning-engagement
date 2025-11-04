@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-clipboard-check me-2"></i>Quiz Review: {{ resource.title }}</h2>
+                <a href="{{ url_for('student_dashboard') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left me-1"></i>Back to Dashboard
+                </a>
+            </div>
+            
+            <!-- Quiz Results Summary -->
+            <div class="card mb-4">
+                <div class="card-header {% if session.quiz_score is not none and session.quiz_score >= 80 %}bg-success{% elif session.quiz_score is not none and session.quiz_score >= 60 %}bg-warning{% elif session.quiz_score is not none %}bg-danger{% else %}bg-secondary{% endif %} text-white">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h4 class="mb-0">
+                                <i class="fas fa-trophy me-2"></i>
+                                {% if session.quiz_score is not none %}
+                                    Final Score: {{ "%.1f"|format(session.quiz_score) }}%
+                                {% else %}
+                                    Score: Pending Teacher Review
+                                {% endif %}
+                            </h4>
+                            <p class="mb-0">
+                                {% if session.quiz_score is not none %}
+                                    {{ correct_count }} out of {{ total_questions }} questions correct
+                                {% else %}
+                                    Your answers were submitted and await grading.
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            {% if session.quiz_score is not none %}
+                                <h5 class="mb-0">
+                                    {% if session.quiz_score >= 80 %}
+                                        <i class="fas fa-star"></i> Excellent!
+                                    {% elif session.quiz_score >= 60 %}
+                                        <i class="fas fa-thumbs-up"></i> Good Job!
+                                    {% else %}
+                                        <i class="fas fa-redo"></i> Keep Practicing!
+                                    {% endif %}
+                                </h5>
+                            {% else %}
+                                <h5 class="mb-0"><i class="fas fa-hourglass-half"></i> Awaiting Grading</h5>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Completed:</strong> {{ session.end_time.strftime('%B %d, %Y at %I:%M %p') }}</p>
+                            {% if session.duration %}
+                                <p><strong>Time Taken:</strong> 
+                                    {% set hours = session.duration // 3600 %}
+                                    {% set minutes = (session.duration % 3600) // 60 %}
+                                    {% set seconds = session.duration % 60 %}
+                                    {% if hours > 0 %}{{ hours }}h {% endif %}{{ minutes }}m {{ seconds }}s
+                                </p>
+                            {% endif %}
+                        </div>
+                        {% if session.quiz_score is not none %}
+                        <div class="col-md-6">
+                            <div class="progress mb-2">
+                                <div class="progress-bar {% if session.quiz_score >= 80 %}bg-success{% elif session.quiz_score >= 60 %}bg-warning{% else %}bg-danger{% endif %}" 
+                                     role="progressbar" style="width: {{ session.quiz_score }}%">
+                                    {{ "%.1f"|format(session.quiz_score) }}%
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI Recommendation -->
+            {% if session.ai_recommendation %}
+            <div class="card mb-4">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-robot me-2"></i>Personalized AI Recommendation</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info mb-0">
+                        <p class="mb-0">{{ session.ai_recommendation }}</p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Detailed Question Review -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-list-alt me-2"></i>Question-by-Question Review</h5>
+                </div>
+                <div class="card-body">
+                    {% for question, answer in question_answers %}
+                    <div class="card mb-3">
+                        <div class="card-header {% if answer and answer.is_correct %}bg-light-success{% else %}bg-light-danger{% endif %}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="mb-0">Question {{ loop.index }}</h6>
+                                {% if answer and answer.is_correct %}
+                                    <span class="badge bg-success"><i class="fas fa-check me-1"></i>Correct</span>
+                                {% else %}
+                                    <span class="badge bg-danger"><i class="fas fa-times me-1"></i>Incorrect</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <p class="fw-bold">{{ question.question_text }}</p>
+                            
+                            <div class="row">
+                                {% if question.question_type == 'mcq' and question.options %}
+                                <div class="col-md-6">
+                                    <h6>Answer Options:</h6>
+                                    <ul class="list-unstyled">
+                                        {% for option in question.options %}
+                                        <li class="mb-1">
+                                            <span class="badge me-2
+                                                {% if option == question.correct_answer %}bg-success
+                                                {% elif answer and option == answer.answer %}bg-primary
+                                                {% else %}bg-light text-dark{% endif %}">
+                                                {{ ['A', 'B', 'C', 'D'][loop.index0] }}
+                                            </span>
+                                            {{ option }}
+                                            {% if option == question.correct_answer %}
+                                                <i class="fas fa-check text-success ms-1"></i>
+                                            {% endif %}
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                                {% else %}
+                                <div class="col-md-6">
+                                    <h6>Question Type:</h6>
+                                    <p class="text-muted">Essay Question</p>
+                                </div>
+                                {% endif %}
+                                <div class="col-md-6">
+                                    <h6>Your Response:</h6>
+                                    {% if answer %}
+                                        <p class="{% if answer.is_correct %}text-success{% else %}text-danger{% endif %}">
+                                            <strong>{{ answer.answer }}</strong>
+                                            {% if answer.is_correct %}
+                                                <i class="fas fa-check ms-1"></i>
+                                            {% else %}
+                                                <i class="fas fa-times ms-1"></i>
+                                            {% endif %}
+                                        </p>
+                                        {% if not answer.is_correct and question.question_type == 'mcq' %}
+                                            <p class="text-success">
+                                                <strong>Correct Answer:</strong> {{ question.correct_answer }}
+                                            </p>
+                                        {% elif question.question_type == 'essay' %}
+                                            <p class="text-info">
+                                                <strong>Note:</strong> Essay questions require manual grading by your teacher.
+                                            </p>
+                                        {% endif %}
+                                    {% else %}
+                                        <p class="text-muted">No answer provided</p>
+                                        {% if question.question_type == 'mcq' %}
+                                        <p class="text-success">
+                                            <strong>Correct Answer:</strong> {{ question.correct_answer }}
+                                        </p>
+                                        {% else %}
+                                        <p class="text-info">
+                                            <strong>Note:</strong> Essay questions require manual grading by your teacher.
+                                        </p>
+                                        {% endif %}
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="mt-4 text-center">
+                <a href="{{ url_for('student_dashboard') }}" class="btn btn-primary me-2">
+                    <i class="fas fa-home me-1"></i>Back to Dashboard
+                </a>
+                {% if session.quiz_score < 70 %}
+                <div class="alert alert-warning mt-3">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Your score is below 70%. Contact your teacher if you need to retake this quiz.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.bg-light-success {
+    background-color: #d1f2eb !important;
+}
+.bg-light-danger {
+    background-color: #fadbd8 !important;
+}
+</style>
+{% endblock %}

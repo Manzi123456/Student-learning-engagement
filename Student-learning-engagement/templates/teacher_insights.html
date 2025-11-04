@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2>Insights</h2>
+        <a href="{{ url_for('teacher_dashboard') }}" class="btn btn-outline-secondary">Back to Dashboard</a>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h6 class="card-title mb-1">Total Study Sessions</h6>
+                    <h3 class="mb-0">{{ total_sessions or 0 }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <h6 class="card-title mb-1">Completed Sessions</h6>
+                    <h3 class="mb-0">{{ completed_sessions or 0 }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <h6 class="card-title mb-1">Average Quiz Score</h6>
+                    <h3 class="mb-0">{{ "%.1f"|format(avg_score or 0) }}%</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ML Model Status -->
+    {% if model_info %}
+    <div class="card mb-3">
+        <div class="card-header">
+            <h6 class="mb-0"><i class="fas fa-brain me-2"></i>Model Status</h6>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong>Status:</strong> 
+                        <span class="badge {% if model_info.status == 'trained' %}bg-success{% else %}bg-warning{% endif %}">
+                            {{ model_info.status.title() }}
+                        </span>
+                    </p>
+                    <p><strong>Last Updated:</strong> {{ model_info.last_updated or 'Never' }}</p>
+                </div>
+                <div class="col-md-6">
+                    <p class="small text-muted">
+                        {% if model_info.status == 'trained' %}
+                            The model is trained and providing accurate success probability predictions based on study patterns.
+                        {% else %}
+                            The model needs training. Success probabilities may not be accurate until trained with sufficient data.
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Per-student Recommendations -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h4 class="mb-0">Student Performance & Teacher Action Plans</h4>
+            <a href="{{ url_for('ml_train') }}" class="btn btn-outline-secondary" onclick="event.preventDefault(); triggerTrain(this);">Train AI</a>
+        </div>
+        <div class="card-body">
+            {% if insights and insights|length > 0 %}
+            <div class="table-responsive">
+                <table class="table table-striped align-middle">
+                    <thead>
+                        <tr>
+                            <th>Student</th>
+                            <th>Grade</th>
+                            <th>Success Probability</th>
+                            <th>Recommended Action</th>
+                            <th>Teacher Action Plan</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in insights %}
+                        {% set rec = item.recommendation %}
+                        <tr>
+                            <td>{{ item.student.name }}</td>
+                            <td>Grade {{ item.student.grade }}</td>
+                            <td>
+                                {% if rec.success_probability is not none %}
+                                    {{ (rec.success_probability * 100) | round(0, 'floor') | int }}%
+                                {% else %}
+                                    <span class="text-muted">N/A</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if rec.recommended_action == 'advance' %}
+                                    <span class="badge bg-success">Advance</span>
+                                {% elif rec.recommended_action == 'practice_related' %}
+                                    <span class="badge bg-warning text-dark">Practice</span>
+                                {% elif rec.recommended_action == 'review_prerequisites' %}
+                                    <span class="badge bg-danger">Review</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ rec.recommended_action }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <small class="text-muted">{{ rec.strategy }}</small>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted mb-0">No insights yet. Try training model and ensure students have recorded study sessions.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+async function triggerTrain(linkEl) {
+    try {
+        linkEl.classList.add('disabled');
+        const resp = await fetch("{{ url_for('ml_train') }}", { method: 'POST' });
+        const data = await resp.json();
+        alert('Training complete: ' + JSON.stringify(data));
+        window.location.reload();
+    } catch (e) {
+        alert('Training failed: ' + e);
+    } finally {
+        linkEl.classList.remove('disabled');
+    }
+}
+</script>
+{% endblock %} 

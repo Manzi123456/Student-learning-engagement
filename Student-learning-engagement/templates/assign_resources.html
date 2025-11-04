@@ -1,0 +1,257 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Assign Resources to Students</h2>
+        <a href="{{ url_for('teacher_dashboard') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-1"></i>Back to Dashboard
+        </a>
+    </div>
+
+    <!-- Grade Filter Form for Individual Assignment -->
+    <form method="POST" action="{{ url_for('assign_resources') }}" class="mb-3">
+        <div class="row">
+            <div class="col-md-6">
+                <label for="filter_grade" class="form-label">Filter Students by Grade</label>
+                <select class="form-select" id="filter_grade" name="filter_grade" onchange="this.form.submit()">
+                    <option value="">Choose a grade...</option>
+                    {% for grade in grades %}
+                    <option value="{{ grade }}" {% if selected_grade == grade %}selected{% endif %}>Grade {{ grade }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+    </form>
+
+    <!-- Assignment Form -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h4>Assign New Resource</h4>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('assign_resource') }}">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="resource_id" class="form-label">Select Resource</label>
+                            <select class="form-select" id="resource_id" name="resource_id" required>
+                                <option value="">Choose a resource...</option>
+                                {% for resource in resources %}
+                                <option value="{{ resource.id }}">{{ resource.title }} ({{ resource.resource_type.title() }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Assignment Type</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="assignment_type" id="individual" value="individual" checked onchange="toggleAssignmentType()">
+                                <label class="form-check-label" for="individual">
+                                    <strong>Individual Student</strong>
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="assignment_type" id="grade" value="grade" onchange="toggleAssignmentType()">
+                                <label class="form-check-label" for="grade">
+                                    <strong>Entire Grade</strong>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Individual Student Assignment -->
+                <div id="individualAssignment" class="row">
+                    <div class="col-md-12">
+                        <div class="mb-3">
+                            <label for="student_id" class="form-label">Select Student</label>
+                            <select class="form-select" id="student_id" name="student_id">
+                                <option value="">Choose a student...</option>
+                                {% for student in students %}
+                                <option value="{{ student.id }}">{{ student.name }} (Grade {{ student.grade }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Grade Assignment -->
+                <div id="gradeAssignment" class="row" style="display: none;">
+                    <div class="col-md-12">
+                        <div class="mb-3">
+                            <label for="grade" class="form-label">Select Grade</label>
+                            <select class="form-select" id="grade" name="grade">
+                                <option value="">Choose a grade...</option>
+                                {% for grade in grades %}
+                                <option value="{{ grade }}">Grade {{ grade }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted">This will assign the resource to ALL students in the selected grade</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label for="max_students" class="form-label">Maximum Students for Access Key</label>
+                            <input type="number" class="form-control" id="max_students" name="max_students" 
+                                   value="1" min="1" max="100">
+                            <small class="text-muted">How many students can use this access key</small>
+                        </div>
+                    </div>
+                    <div class="col-md-8">
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="generate_key" name="generate_key">
+                                <label class="form-check-label" for="generate_key">
+                                    <strong>Generate Access Key</strong>
+                                </label>
+                            </div>
+                            <small class="text-muted">Check this to create an access key that students can use to access this resource</small>
+                        </div>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-plus me-1"></i>Assign Resource
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Current Assignments -->
+    <div class="card">
+        <div class="card-header">
+            <h4>Current Assignments</h4>
+        </div>
+        <div class="card-body">
+            {% if assignments %}
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Resource</th>
+                            <th>Type</th>
+                            <th>Student</th>
+                            <th>Grade</th>
+                            <th>Access Key</th>
+                            <th>Usage</th>
+                            <th>Assigned Date</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for assignment, resource, student in assignments %}
+                        <tr>
+                            <td>
+                                <strong>{{ resource.title }}</strong>
+                                <br>
+                                <small class="text-muted">{{ resource.description[:50] }}...</small>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary">{{ resource.resource_type.title() }}</span>
+                            </td>
+                            <td>{{ student.name }}</td>
+                            <td>Grade {{ student.grade }}</td>
+                            <td>
+                                {% if assignment.access_key %}
+                                    <code class="bg-light px-2 py-1 rounded">{{ assignment.access_key }}</code>
+                                    <br>
+                                    <small class="text-muted">Max: {{ assignment.max_students }}</small>
+                                {% else %}
+                                    <span class="text-muted">Direct assignment</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if assignment.access_key %}
+                                    {% set access = access_data|selectattr('access.access_key', 'equalto', assignment.access_key)|first %}
+                                    {% if access %}
+                                        {{ access.access.current_usage }}/{{ access.access.max_students }}
+                                    {% else %}
+                                        0/{{ assignment.max_students }}
+                                    {% endif %}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>{{ assignment.assigned_at.strftime('%B %d, %Y at %I:%M %p') }}</td>
+                            <td>
+                                <form method="POST" action="{{ url_for('remove_assignment', assignment_id=assignment.id) }}" class="d-inline">
+                                    <button type="submit" class="btn btn-danger btn-sm" 
+                                            onclick="return confirm('Are you sure you want to remove this assignment?')">
+                                        <i class="fas fa-trash me-1"></i>Remove
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info">
+                <h5>No assignments yet.</h5>
+                <p class="mb-0">Use the form above to assign resources to your students.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Statistics -->
+    <div class="row mt-4">
+        <div class="col-md-4">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <h5>Total Students</h5>
+                    <h3>{{ students|length }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <h5>Total Resources</h5>
+                    <h3>{{ resources|length }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <h5>Active Assignments</h5>
+                    <h3>{{ assignments|length }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleAssignmentType() {
+    const individualType = document.getElementById('individual');
+    const individualDiv = document.getElementById('individualAssignment');
+    const gradeDiv = document.getElementById('gradeAssignment');
+    const studentSelect = document.getElementById('student_id');
+    const gradeSelect = document.getElementById('grade');
+    
+    if (individualType.checked) {
+        individualDiv.style.display = 'block';
+        gradeDiv.style.display = 'none';
+        studentSelect.required = true;
+        gradeSelect.required = false;
+    } else {
+        individualDiv.style.display = 'none';
+        gradeDiv.style.display = 'block';
+        studentSelect.required = false;
+        gradeSelect.required = true;
+    }
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    toggleAssignmentType();
+});
+</script>
+{% endblock %} 

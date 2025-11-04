@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        <i class="fas fa-key me-2"></i>Access Resource with Key
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-4">
+                        Enter the access key provided by your teacher to access educational resources.
+                    </p>
+                    
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label for="access_key" class="form-label">Access Key</label>
+                            <input type="text" class="form-control form-control-lg text-center" 
+                                   id="access_key" name="access_key" 
+                                   placeholder="Enter 8-character key" 
+                                   maxlength="8" 
+                                   style="font-family: monospace; font-size: 1.2em; letter-spacing: 0.2em;"
+                                   required>
+                            <small class="text-muted">Enter the 8-character access key (letters and numbers only)</small>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-unlock me-2"></i>Access Resource
+                            </button>
+                            <a href="{{ url_for('student_dashboard') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Instructions -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>How to Use Access Keys
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <ol class="mb-0">
+                        <li>Ask your teacher for an access key for the resource you want to access</li>
+                        <li>Enter the 8-character key in the field above</li>
+                        <li>Click "Access Resource" to gain access</li>
+                        <li>The resource will be added to your dashboard</li>
+                        <li>You can access the resource anytime from your dashboard</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Auto-format the access key input
+document.getElementById('access_key').addEventListener('input', function(e) {
+    // Convert to uppercase and remove non-alphanumeric characters
+    this.value = this.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+});
+</script>
+{% endblock %} 

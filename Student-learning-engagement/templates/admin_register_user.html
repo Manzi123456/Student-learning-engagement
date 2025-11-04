@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="text-center">Register New User</h3>
+            </div>
+            <div class="card-body">
+                <form method="POST" id="userForm">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Username</label>
+                        <input type="text" class="form-control" id="username" name="username" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="email" name="email" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password</label>
+                        <input type="password" class="form-control" id="password" name="password" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="role" class="form-label">Role</label>
+                        <select class="form-select" id="role" name="role" required onchange="toggleStudentFields()">
+                            <option value="admin" {% if selected_role == 'admin' %}selected{% endif %}>Admin</option>
+                            <option value="teacher" {% if selected_role == 'teacher' %}selected{% endif %}>Teacher</option>
+                            <option value="student" {% if selected_role == 'student' %}selected{% endif %}>Student</option>
+                            <option value="staff" {% if selected_role == 'staff' %}selected{% endif %}>Staff</option>
+                            <option value="moderator" {% if selected_role == 'moderator' %}selected{% endif %}>Moderator</option>
+                        </select>
+                    </div>
+                    <div id="studentFields" style="display: none;">
+                        <div class="mb-3">
+                            <label for="name" class="form-label">Full Name</label>
+                            <input type="text" class="form-control" id="name" name="name">
+                        </div>
+                        <div class="mb-3">
+                            <label for="student_id" class="form-label">Student ID</label>
+                            <input type="text" class="form-control" id="student_id" name="student_id">
+                        </div>
+                        <div class="mb-3">
+                            <label for="grade" class="form-label">Grade</label>
+                            <select class="form-select" id="grade" name="grade">
+                                <option value="">Select Grade</option>
+                                <option value="1">Grade 1</option>
+                                <option value="2">Grade 2</option>
+                                <option value="3">Grade 3</option>
+                                <option value="4">Grade 4</option>
+                                <option value="5">Grade 5</option>
+                                <option value="6">Grade 6</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="teacher_id" class="form-label">Assign Teacher</label>
+                            <select class="form-select" id="teacher_id" name="teacher_id">
+                                <option value="">Select Teacher</option>
+                                {% for t in teachers %}
+                                    <option value="{{ t.id }}">{{ t.username }} ({{ t.email }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">Register User</button>
+                        <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleStudentFields() {
+    const role = document.getElementById('role').value;
+    const studentFields = document.getElementById('studentFields');
+    const name = document.getElementById('name');
+    const studentId = document.getElementById('student_id');
+    const grade = document.getElementById('grade');
+    const teacher = document.getElementById('teacher_id');
+    
+    if (role === 'student') {
+        studentFields.style.display = 'block';
+        name.required = true;
+        studentId.required = true;
+        grade.required = true;
+        teacher.required = true;
+    } else {
+        studentFields.style.display = 'none';
+        name.required = false;
+        studentId.required = false;
+        grade.required = false;
+        teacher.required = false;
+    }
+}
+</script>
+{% endblock %} 

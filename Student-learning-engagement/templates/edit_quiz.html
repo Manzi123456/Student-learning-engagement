@@ -1,0 +1,308 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3>Edit Quiz: {{ quiz.title }}</h3>
+                </div>
+                <div class="card-body">
+                    <form id="quizForm" method="POST">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="title" class="form-label">Quiz Title *</label>
+                                    <input type="text" class="form-control" id="title" name="title" value="{{ quiz.title }}" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="grade" class="form-label">Grade Level *</label>
+                                    <select class="form-select" id="grade" name="grade" required>
+                                        <option value="">Select Grade</option>
+                                        {% for grade in grades %}
+                                        <option value="{{ grade }}" {% if grade == quiz.grade %}selected{% endif %}>Grade {{ grade }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Description</label>
+                            <textarea class="form-control" id="description" name="description" rows="3" placeholder="Optional description of the quiz">{{ quiz.description or '' }}</textarea>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="time_limit" class="form-label">Time Limit (minutes)</label>
+                                    <input type="number" class="form-control" id="time_limit" name="time_limit" min="1" max="180" 
+                                           placeholder="Leave empty for no limit" 
+                                           value="{{ (metadata.time_limit // 60) if metadata and metadata.time_limit else '' }}">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="passing_score" class="form-label">Passing Score (%)</label>
+                                    <input type="number" class="form-control" id="passing_score" name="passing_score" min="0" max="100" 
+                                           value="{{ metadata.passing_score if metadata else 70 }}">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <hr>
+                        
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h4>Questions</h4>
+                                <button type="button" class="btn btn-success" onclick="addQuestion()">
+                                    <i class="fas fa-plus"></i> Add Question
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div id="questionsContainer">
+                            <!-- Questions will be added here dynamically -->
+                        </div>
+                        
+                        <input type="hidden" id="questions_data" name="questions_data" value="[]">
+                        
+                        <div class="mt-4">
+                            <button type="submit" class="btn btn-primary" id="submitBtn">
+                                Update Quiz
+                            </button>
+                            <a href="{{ url_for('teacher_quizzes') }}" class="btn btn-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let questionCounter = 0;
+
+function addQuestion(questionData = null) {
+    questionCounter++;
+    const isEdit = questionData !== null;
+    
+    const questionHtml = `
+        <div class="question-item card mb-3" data-question="${questionCounter}">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6>Question ${questionCounter}</h6>
+                <button type="button" class="btn btn-sm btn-danger" onclick="removeQuestion(${questionCounter})">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">Question Text *</label>
+                    <textarea class="form-control question-text" rows="2" placeholder="Enter your question here..." required>${isEdit ? questionData.question : ''}</textarea>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Question Type *</label>
+                    <select class="form-select question-type" onchange="toggleQuestionType(this)">
+                        <option value="mcq">Multiple Choice</option>
+                        <option value="essay">Essay</option>
+                    </select>
+                </div>
+
+                <div class="mb-3 mcq-section">
+                    <label class="form-label">Answer Options *</label>
+                    <div class="options-container">
+                        <div class="input-group mb-2">
+                            <span class="input-group-text">A</span>
+                            <input type="text" class="form-control option-text" placeholder="Option A" required value="${isEdit ? questionData.options[0] : ''}">
+                        </div>
+                        <div class="input-group mb-2">
+                            <span class="input-group-text">B</span>
+                            <input type="text" class="form-control option-text" placeholder="Option B" required value="${isEdit ? questionData.options[1] : ''}">
+                        </div>
+                        <div class="input-group mb-2">
+                            <span class="input-group-text">C</span>
+                            <input type="text" class="form-control option-text" placeholder="Option C" required value="${isEdit ? questionData.options[2] : ''}">
+                        </div>
+                        <div class="input-group mb-2">
+                            <span class="input-group-text">D</span>
+                            <input type="text" class="form-control option-text" placeholder="Option D" required value="${isEdit ? questionData.options[3] : ''}">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-3 mcq-section">
+                    <label class="form-label">Correct Answer *</label>
+                    <select class="form-select correct-answer">
+                        <option value="">Select correct answer</option>
+                        <option value="A" ${isEdit && questionData.correct_answer === 'A' ? 'selected' : ''}>A</option>
+                        <option value="B" ${isEdit && questionData.correct_answer === 'B' ? 'selected' : ''}>B</option>
+                        <option value="C" ${isEdit && questionData.correct_answer === 'C' ? 'selected' : ''}>C</option>
+                        <option value="D" ${isEdit && questionData.correct_answer === 'D' ? 'selected' : ''}>D</option>
+                    </select>
+                </div>
+
+                <div class="mb-3 essay-section" style="display:none;">
+                    <label class="form-label">Expected Answer (optional)</label>
+                    <textarea class="form-control expected-answer" rows="3" placeholder="Optional reference answer for teacher grading">${isEdit && questionData.question_type === 'essay' ? (questionData.correct_answer || '') : ''}</textarea>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.getElementById('questionsContainer').insertAdjacentHTML('beforeend', questionHtml);
+    // initialize type controls
+    const container = document.querySelector(`[data-question="${questionCounter}"]`);
+    const typeSelect = container.querySelector('.question-type');
+    if (isEdit && questionData.question_type) {
+        typeSelect.value = questionData.question_type;
+    }
+    toggleQuestionType(typeSelect);
+    updateQuestionsData();
+}
+
+function removeQuestion(questionNum) {
+    const questionElement = document.querySelector(`[data-question="${questionNum}"]`);
+    if (questionElement) {
+        questionElement.remove();
+        updateQuestionsData();
+    }
+}
+
+function updateQuestionsData() {
+    const questions = [];
+    const questionElements = document.querySelectorAll('.question-item');
+    
+    questionElements.forEach((element, index) => {
+        const questionText = element.querySelector('.question-text').value;
+        const questionType = element.querySelector('.question-type').value;
+        const options = [];
+        const optionInputs = element.querySelectorAll('.option-text');
+        const correctAnswer = element.querySelector('.correct-answer').value;
+        const expectedAnswer = element.querySelector('.expected-answer') ? element.querySelector('.expected-answer').value : '';
+        
+        if (questionType === 'mcq') {
+            optionInputs.forEach(input => {
+                if (input.value.trim()) {
+                    options.push(input.value.trim());
+                }
+            });
+            if (questionText.trim() && options.length === 4 && correctAnswer) {
+                questions.push({
+                    question_type: 'mcq',
+                    question: questionText.trim(),
+                    options: options,
+                    correct_answer: correctAnswer
+                });
+            }
+        } else {
+            if (questionText.trim()) {
+                questions.push({
+                    question_type: 'essay',
+                    question: questionText.trim(),
+                    correct_answer: expectedAnswer.trim()
+                });
+            }
+        }
+    });
+    
+    document.getElementById('questions_data').value = JSON.stringify(questions);
+}
+
+// Add event listeners for form validation
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('quizForm');
+    const questionsContainer = document.getElementById('questionsContainer');
+    
+    // Add event listeners to form inputs
+    form.addEventListener('input', updateQuestionsData);
+    form.addEventListener('change', updateQuestionsData);
+    
+    // Add event listeners to questions container
+    questionsContainer.addEventListener('input', function() {
+        updateQuestionsData();
+    });
+    
+    questionsContainer.addEventListener('change', function() {
+        updateQuestionsData();
+    });
+    
+    // Load existing questions
+    {% if questions %}
+        {% for question in questions %}
+            addQuestion({
+                question: "{{ question.question_text }}",
+                options: {{ (question.options or []) | tojson }},
+                correct_answer: "{{ question.correct_answer or '' }}",
+                question_type: "{{ question.question_type if question.question_type else 'mcq' }}"
+            });
+        {% endfor %}
+    {% else %}
+        // Add first question by default if no existing questions
+        addQuestion();
+    {% endif %}
+});
+
+// Form submission validation
+document.getElementById('quizForm').addEventListener('submit', function(e) {
+    const questions = JSON.parse(document.getElementById('questions_data').value);
+    
+    if (questions.length === 0) {
+        e.preventDefault();
+        alert('Please add at least one question to the quiz.');
+        return false;
+    }
+    
+    // Validate each question
+    for (let i = 0; i < questions.length; i++) {
+        const q = questions[i];
+        if (q.question_type === 'mcq') {
+            if (!q.question.trim() || q.options.length !== 4 || !q.correct_answer) {
+                e.preventDefault();
+                alert(`Question ${i + 1} is incomplete. Please fill in all MCQ fields.`);
+                return false;
+            }
+        } else if (q.question_type === 'essay') {
+            if (!q.question.trim()) {
+                e.preventDefault();
+                alert(`Question ${i + 1} is incomplete. Please enter the essay prompt.`);
+                return false;
+            }
+        }
+    }
+});
+</script>
+
+<script>
+function toggleQuestionType(selectEl) {
+    const cardBody = selectEl.closest('.card-body');
+    const isMcq = selectEl.value === 'mcq';
+    cardBody.querySelectorAll('.mcq-section').forEach(el => el.style.display = isMcq ? '' : 'none');
+    const essaySection = cardBody.querySelector('.essay-section');
+    if (essaySection) essaySection.style.display = isMcq ? 'none' : '';
+}
+</script>
+
+<style>
+.question-item {
+    border: 1px solid #dee2e6;
+}
+
+.question-item .card-header {
+    background-color: #f8f9fa;
+}
+
+.options-container .input-group-text {
+    min-width: 40px;
+    justify-content: center;
+    font-weight: bold;
+}
+
+.correct-answer {
+    max-width: 200px;
+}
+</style>
+{% endblock %}

@@ -1,0 +1,511 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3>Quiz: {{ resource.title }}</h3>
+                            <p class="text-muted">{{ resource.description }}</p>
+                        </div>
+                        {% if time_limit_seconds %}
+                        <div class="text-end">
+                            <div id="timerContainer" class="timer-container">
+                                <div class="timer-display">
+                                    <i class="fas fa-clock me-2"></i>
+                                    <span id="timerDisplay">--:--</span>
+                                </div>
+                                <div class="timer-progress">
+                                    <div class="progress" style="height: 4px;">
+                                        <div id="timerProgress" class="progress-bar bg-warning" role="progressbar" style="width: 100%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="card-body">
+                    <form id="quizForm">
+                        <input type="hidden" name="resource_id" value="{{ resource.id }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        {% for question in questions %}
+                        <div class="question-container mb-4" data-question-id="{{ question.id }}">
+                            <h5 class="d-flex align-items-center justify-content-between">
+                                <span>Question {{ loop.index }}</span>
+                                <span class="badge bg-info text-dark">{{ question.marks }} mark{{ 1 if question.marks == 1 else 's' }}</span>
+                            </h5>
+                            <p>{{ question.question_text }}</p>
+                            {% if question.question_type == 'essay' %}
+                                <div class="mb-3">
+                                    <label class="form-label">Your Answer</label>
+                                    <textarea class="form-control essay-answer" name="question_{{ question.id }}" rows="5" placeholder="Write your answer here..."></textarea>
+                                </div>
+                            {% else %}
+                                <div class="options">
+                                    {% if is_reassessment and question.shuffled_options %}
+                                        {% for option in question.shuffled_options or [] %}
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="radio" name="question_{{ question.id }}" 
+                                                   id="q{{ question.id }}_{{ loop.index0 }}" value="{{ option }}">
+                                            <label class="form-check-label" for="q{{ question.id }}_{{ loop.index0 }}">
+                                                <strong>{{ ['A', 'B', 'C', 'D'][loop.index0] }}.</strong> {{ option }}
+                                            </label>
+                                        </div>
+                                        {% endfor %}
+                                    {% else %}
+                                        {% for option in question.options or [] %}
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="radio" name="question_{{ question.id }}" 
+                                                   id="q{{ question.id }}_{{ loop.index0 }}" value="{{ option }}">
+                                            <label class="form-check-label" for="q{{ question.id }}_{{ loop.index0 }}">
+                                                <strong>{{ ['A', 'B', 'C', 'D'][loop.index0] }}.</strong> {{ option }}
+                                            </label>
+                                        </div>
+                                        {% endfor %}
+                                    {% endif %}
+                                </div>
+                            {% endif %}
+                            <div class="feedback mt-2" style="display: none;">
+                                <div class="alert" role="alert"></div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        
+                        <div class="quiz-progress mb-3" style="display: none;">
+                            <div class="progress">
+                                <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                            </div>
+                            <small class="text-muted">Score: <span id="currentScore">0</span>%</small>
+                        </div>
+                        
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary" id="submitBtn">
+                                <i class="fas fa-check me-1"></i>Submit Answers
+                            </button>
+                        </div>
+                    </form>
+                    
+                    <div id="finalResults" class="mt-4" style="display: none;">
+                        <div class="card">
+                            <div class="card-header bg-success text-white">
+                                <h5 class="mb-0"><i class="fas fa-trophy me-2"></i>Quiz Completed!</h5>
+                            </div>
+                            <div class="card-body">
+                                <h4>Final Score: <span id="finalScore">0</span>%</h4>
+                                <p>Correct Answers: <span id="finalCorrect">0</span> / <span id="finalTotal">0</span></p>
+                                
+                                <!-- AI Feedback Section -->
+                                <div id="aiFeedbackSection" class="mt-3" style="display: none;">
+                                    <div class="alert alert-info">
+                                        <h6><i class="fas fa-robot me-2"></i>AI Feedback</h6>
+                                        <p id="aiFeedbackText" class="mb-0"></p>
+                                    </div>
+                                </div>
+                                
+                                <div class="mt-3">
+                                    <a href="{{ url_for('student_dashboard') }}" class="btn btn-primary">
+                                        <i class="fas fa-arrow-left me-1"></i>Back to Resources
+                                    </a>
+                                    <a href="{{ url_for('view_resource', resource_id=resource.id) }}" class="btn btn-outline-primary">
+                                        <i class="fas fa-eye me-1"></i>View Resource Again
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let quizCompleted = false;
+let currentScore = 0;
+let totalQuestions = {{ questions|length }};
+let timeLimitSeconds = {{ time_limit_seconds if time_limit_seconds else 'null' }};
+let timeRemaining = timeLimitSeconds;
+let timerInterval = null;
+let quizStartTime = new Date();
+
+// Timer functions
+function formatTime(seconds) {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+}
+
+function updateTimer() {
+    if (!timeLimitSeconds || quizCompleted) return;
+    
+    const elapsed = Math.floor((new Date() - quizStartTime) / 1000);
+    timeRemaining = Math.max(0, timeLimitSeconds - elapsed);
+    
+    const timerDisplay = document.getElementById('timerDisplay');
+    const timerProgress = document.getElementById('timerProgress');
+    const timerContainer = document.getElementById('timerContainer');
+    
+    if (timerDisplay) {
+        timerDisplay.textContent = formatTime(timeRemaining);
+    }
+    
+    if (timerProgress) {
+        const progressPercent = (timeRemaining / timeLimitSeconds) * 100;
+        timerProgress.style.width = progressPercent + '%';
+        
+        // Change color based on remaining time
+        if (progressPercent <= 10) {
+            timerProgress.className = 'progress-bar bg-danger';
+            timerContainer.classList.add('timer-warning');
+        } else if (progressPercent <= 25) {
+            timerProgress.className = 'progress-bar bg-warning';
+            timerContainer.classList.add('timer-warning');
+        } else {
+            timerProgress.className = 'progress-bar bg-success';
+            timerContainer.classList.remove('timer-warning');
+        }
+    }
+    
+    // Auto-submit when time runs out
+    if (timeRemaining <= 0) {
+        clearInterval(timerInterval);
+        autoSubmitQuiz();
+    }
+}
+
+function startTimer() {
+    if (timeLimitSeconds && !timerInterval) {
+        updateTimer(); // Initial update
+        timerInterval = setInterval(updateTimer, 1000); // Update every second
+    }
+}
+
+function stopTimer() {
+    if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+    }
+}
+
+function autoSubmitQuiz() {
+    if (quizCompleted) return;
+    
+    // Show warning
+    alert('Time is up! Your quiz will be automatically submitted.');
+    
+    // Submit all unanswered questions with empty answers
+    const questions = document.querySelectorAll('.question-container');
+    for (const question of questions) {
+        const questionId = question.dataset.questionId;
+        const selectedAnswer = document.querySelector(`input[name="question_${questionId}"]:checked`);
+        
+        if (!selectedAnswer) {
+            // Create a hidden input for unanswered questions
+            const hiddenInput = document.createElement('input');
+            hiddenInput.type = 'hidden';
+            hiddenInput.name = `question_${questionId}`;
+            hiddenInput.value = '';
+            document.getElementById('quizForm').appendChild(hiddenInput);
+        }
+    }
+    
+    // Trigger form submission
+    document.getElementById('quizForm').dispatchEvent(new Event('submit'));
+}
+
+// Initialize timer when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    startTimer();
+    // Paste tracking setup
+    try {
+        // Helper to send activity
+        async function trackActivity(payload) {
+            try {
+                await fetch('/api/track_activity', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+            } catch (e) {
+                // Non-blocking; ignore errors
+            }
+        }
+
+        // Attach paste listeners for essay textareas
+        const essayTextareas = document.querySelectorAll('.essay-answer');
+        essayTextareas.forEach((ta) => {
+            ta.addEventListener('paste', (e) => {
+                const container = ta.closest('.question-container');
+                const qid = container ? container.getAttribute('data-question-id') : null;
+                const pasted = (e.clipboardData || window.clipboardData)?.getData('text') || '';
+                trackActivity({
+                    resource_id: {{ resource.id }},
+                    activity_type: 'paste',
+                    data: {
+                        question_id: qid,
+                        target_type: 'essay',
+                        length: pasted.length
+                    }
+                });
+            });
+        });
+
+        // Global paste listener to catch paste attempts within MCQ blocks
+        document.addEventListener('paste', (e) => {
+            const target = e.target;
+            const container = target && target.closest ? target.closest('.question-container') : null;
+            const qid = container ? container.getAttribute('data-question-id') : null;
+            const isEssay = target && target.classList && target.classList.contains('essay-answer');
+            if (!qid || isEssay) return; // essay handled above
+            const pasted = (e.clipboardData || window.clipboardData)?.getData('text') || '';
+            trackActivity({
+                resource_id: {{ resource.id }},
+                activity_type: 'paste',
+                data: {
+                    question_id: qid,
+                    target_type: 'mcq',
+                    length: pasted.length
+                }
+            });
+        }, true);
+    } catch (err) {
+        // Swallow any tracking setup issues to avoid impacting quiz flow
+    }
+});
+
+document.getElementById('quizForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    if (quizCompleted) return;
+    
+    const questions = document.querySelectorAll('.question-container');
+    let allAnswered = true;
+    let answeredCount = 0;
+    
+    // Check if all questions are answered
+    for (const question of questions) {
+        const questionId = question.dataset.questionId;
+        const essayTextarea = question.querySelector('.essay-answer');
+        if (essayTextarea) {
+            if (!essayTextarea.value.trim()) {
+                allAnswered = false;
+            } else {
+                answeredCount++;
+            }
+        } else {
+            const selectedAnswer = document.querySelector(`input[name="question_${questionId}"]:checked`);
+            if (!selectedAnswer) {
+                allAnswered = false;
+            } else {
+                answeredCount++;
+            }
+        }
+    }
+    
+    if (!allAnswered) {
+        alert(`Please answer all questions. You have answered ${answeredCount} out of ${totalQuestions} questions.`);
+        return;
+    }
+    
+    // Submit all answers
+    const submitBtn = document.getElementById('submitBtn');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Submitting...';
+    
+    let correctCount = 0;
+    
+    for (const question of questions) {
+        const questionId = question.dataset.questionId;
+        const essayTextarea = question.querySelector('.essay-answer');
+        const selectedAnswer = essayTextarea ? { value: essayTextarea.value } : document.querySelector(`input[name="question_${questionId}"]:checked`);
+        const feedback = question.querySelector('.feedback');
+        const alertDiv = feedback.querySelector('.alert');
+        
+        try {
+            const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+            const response = await fetch('/student/submit_answer', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': csrfToken
+                },
+                body: `question_id=${questionId}&answer=${encodeURIComponent(selectedAnswer.value)}&resource_id={{ resource.id }}&csrf_token=${encodeURIComponent(csrfToken)}`
+            });
+            
+            const data = await response.json();
+            if (data.success) {
+                feedback.style.display = 'block';
+                if (data.timeout) {
+                    // Handle timeout - redirect to dashboard
+                    alertDiv.className = 'alert alert-warning';
+                    alertDiv.innerHTML = `<i class="fas fa-clock me-2"></i>Time's up! Quiz automatically submitted. Redirecting to dashboard...`;
+                    
+                    setTimeout(() => {
+                        window.location.href = "{{ url_for('student_dashboard') }}";
+                    }, 2000);
+                    return;
+                } else if (data.completed) {
+                    // Handle quiz completion - redirect to dashboard
+                    alertDiv.className = 'alert alert-success';
+                    alertDiv.innerHTML = `<i class="fas fa-check-circle me-2"></i>Quiz completed! Redirecting to dashboard...`;
+                    
+                    setTimeout(() => {
+                        window.location.href = "{{ url_for('student_dashboard') }}";
+                    }, 2000);
+                    return;
+                } else if (data.pending_review) {
+                    alertDiv.className = 'alert alert-info';
+                    alertDiv.innerHTML = `<i class="fas fa-info-circle me-2"></i>Answer submitted. Await teacher review.`;
+                } else {
+                    if (data.is_correct) {
+                        alertDiv.className = 'alert alert-success';
+                        alertDiv.innerHTML = '<i class="fas fa-check-circle me-2"></i>Correct! ✓';
+                    } else {
+                        let correctAnswerDisplay = '';
+                        if (data.correct_answer && data.correct_answer.length === 1 && ['A','B','C','D'].includes(data.correct_answer)) {
+                            const options = question.querySelectorAll('input[type="radio"]');
+                            const correctIndex = ['A','B','C','D'].indexOf(data.correct_answer);
+                            if (correctIndex >= 0 && options[correctIndex]) {
+                                correctAnswerDisplay = `${data.correct_answer}. ${options[correctIndex].value}`;
+                            } else {
+                                correctAnswerDisplay = data.correct_answer;
+                            }
+                        } else if (data.correct_answer) {
+                            const optionLabels = ['A','B','C','D'];
+                            const options = question.querySelectorAll('input[type="radio"]');
+                            let correctLetter = '';
+                            for (let i = 0; i < options.length; i++) {
+                                if (options[i].value === data.correct_answer) {
+                                    correctLetter = optionLabels[i];
+                                    break;
+                                }
+                            }
+                            correctAnswerDisplay = correctLetter ? `${correctLetter}. ${data.correct_answer}` : data.correct_answer;
+                        } else {
+                            correctAnswerDisplay = 'Unknown';
+                        }
+                        alertDiv.className = 'alert alert-danger';
+                        alertDiv.innerHTML = `<i class=\"fas fa-times-circle me-2\"></i>Incorrect. The correct answer was: <strong>${correctAnswerDisplay}</strong> ✗`;
+                    }
+                    // Show progress only for MCQs
+                    if (typeof data.current_score === 'number') {
+                        document.querySelector('.quiz-progress').style.display = 'block';
+                        const progressEl = document.querySelector('.progress-bar');
+                        const scoreEl = document.getElementById('currentScore');
+                        if (progressEl && scoreEl) {
+                            scoreEl.textContent = data.current_score.toFixed(1);
+                            progressEl.style.width = `${data.current_score}%`;
+                            progressEl.textContent = `${data.current_score.toFixed(1)}%`;
+                        }
+                    }
+                }
+            } else {
+                feedback.style.display = 'block';
+                alertDiv.className = 'alert alert-warning';
+                alertDiv.innerHTML = `<i class="fas fa-exclamation-triangle me-2"></i>${data.error || 'Unknown error occurred'}`;
+            }
+        } catch (error) {
+            console.error('Error submitting answer:', error);
+            feedback.style.display = 'block';
+            alertDiv.className = 'alert alert-danger';
+            alertDiv.textContent = 'Error submitting answer. Please try again.';
+        }
+    }
+    
+    // Auto-complete the quiz once all answers are submitted
+    try {
+        const response = await fetch('/student/complete_quiz/{{ resource.id }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+        const data = await response.json();
+        if (data.success) {
+            quizCompleted = true;
+            stopTimer();
+            // Show final results (manual grading: no auto score for essays)
+            document.getElementById('finalScore').textContent = data.final_score !== undefined && data.final_score !== null ? data.final_score : '—';
+            document.getElementById('finalCorrect').textContent = data.final_correct !== undefined && data.final_correct !== null ? data.final_correct : '—';
+            document.getElementById('finalTotal').textContent = '{{ questions|length }}';
+            if (data.ai_recommendation) {
+                document.getElementById('aiFeedbackText').textContent = data.ai_recommendation;
+                document.getElementById('aiFeedbackSection').style.display = 'block';
+            }
+            // Show success message briefly, then redirect to dashboard
+            submitBtn.innerHTML = '<i class="fas fa-check me-1"></i>Quiz Submitted';
+            submitBtn.classList.remove('btn-primary');
+            submitBtn.classList.add('btn-success');
+            
+            // Show brief success message
+            const successAlert = document.createElement('div');
+            successAlert.className = 'alert alert-success alert-dismissible fade show';
+            successAlert.innerHTML = `
+                <i class="fas fa-check-circle me-2"></i>
+                <strong>Quiz Completed Successfully!</strong> Redirecting to dashboard...
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.querySelector('.container').insertBefore(successAlert, document.querySelector('.container').firstChild);
+            
+            // Redirect to dashboard after a short delay
+            setTimeout(() => {
+                window.location.href = "{{ url_for('student_dashboard') }}";
+            }, 2000);
+        } else {
+            alert(data.error || 'Failed to finalize quiz. Please try again.');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-check me-1"></i>Submit Answers';
+        }
+    } catch (error) {
+        console.error('Error completing quiz:', error);
+        alert('Error finalizing quiz. Please try again.');
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class=\"fas fa-check me-1\"></i>Submit Answers';
+    }
+});
+
+</script>
+
+<style>
+.timer-container {
+    min-width: 120px;
+}
+
+.timer-display {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #333;
+    text-align: center;
+    margin-bottom: 5px;
+}
+
+.timer-warning {
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+.timer-progress .progress-bar {
+    transition: width 1s ease-in-out, background-color 0.3s ease;
+}
+
+@media (max-width: 768px) {
+    .timer-container {
+        margin-top: 10px;
+        min-width: 100px;
+    }
+    
+    .timer-display {
+        font-size: 1rem;
+    }
+}
+</style>
+{% endblock %} 

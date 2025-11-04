@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Manage Access Keys</h2>
+        <a href="{{ url_for('teacher_dashboard') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-1"></i>Back to Dashboard
+        </a>
+    </div>
+
+    {% if access_data %}
+    <div class="card">
+        <div class="card-header">
+            <h4>Active Access Keys</h4>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Access Key</th>
+                            <th>Resource</th>
+                            <th>Type</th>
+                            <th>Usage</th>
+                            <th>Students Using</th>
+                            <th>Created</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for data in access_data %}
+                        <tr>
+                            <td>
+                                <code class="bg-light px-2 py-1 rounded fs-5">{{ data.access.access_key }}</code>
+                                <br>
+                                <small class="text-muted">Share this key with students</small>
+                            </td>
+                            <td>
+                                <strong>{{ data.resource.title }}</strong>
+                                <br>
+                                <small class="text-muted">{{ data.resource.description[:50] }}...</small>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary">{{ data.resource.resource_type.title() }}</span>
+                            </td>
+                            <td>
+                                <span class="badge {% if data.access.current_usage >= data.access.max_students %}bg-danger{% elif data.access.current_usage > 0 %}bg-warning{% else %}bg-success{% endif %}">
+                                    {{ data.access.current_usage }}/{{ data.access.max_students }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if data.students %}
+                                    {% for student in data.students %}
+                                        <span class="badge bg-info me-1">{{ student.name }}</span>
+                                    {% endfor %}
+                                {% else %}
+                                    <span class="text-muted">No students yet</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ data.access.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td>
+                                {% if data.access.is_active %}
+                                    <span class="badge bg-success">Active</span>
+                                {% else %}
+                                    <span class="badge bg-danger">Revoked</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if data.access.is_active %}
+                                <form method="POST" action="{{ url_for('revoke_access_key', access_id=data.access.id) }}" class="d-inline">
+                                    <button type="submit" class="btn btn-danger btn-sm" 
+                                            onclick="return confirm('Are you sure you want to revoke this access key? This will remove access for all students using it.')">
+                                        <i class="fas fa-ban me-1"></i>Revoke
+                                    </button>
+                                </form>
+                                {% else %}
+                                <span class="text-muted">Already revoked</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="card">
+        <div class="card-body text-center">
+            <h5>No Access Keys Created</h5>
+            <p class="text-muted">You haven't created any access keys yet.</p>
+            <a href="{{ url_for('assign_resources') }}" class="btn btn-primary">
+                <i class="fas fa-plus me-1"></i>Create Access Keys
+            </a>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Statistics -->
+    <div class="row mt-4">
+        <div class="col-md-4">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <h5>Total Access Keys</h5>
+                    <h3>{{ access_data|length }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <h5>Active Keys</h5>
+                    <h3>{{ access_data|selectattr('access.is_active', 'equalto', true)|list|length }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <h5>Total Usage</h5>
+                    <h3>{{ access_data|sum(attribute='access.current_usage') }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 
